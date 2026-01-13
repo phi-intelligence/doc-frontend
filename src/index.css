@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-light-bg text-light-text font-sans antialiased h-screen overflow-hidden;
+  }
+
+  /* Improve font rendering */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Custom scrollbar for warm theme */
+.custom-scrollbar-dark::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar-dark::-webkit-scrollbar-track {
+  background: #FAF9F6;
+  border-radius: 4px;
+}
+
+.custom-scrollbar-dark::-webkit-scrollbar-thumb {
+  background: #D4CFC5;
+  border-radius: 4px;
+}
+
+.custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: #B8A07A;
+}
+
+/* Thin scrollbar variant */
+.custom-scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #E8E4DD;
+  border-radius: 3px;
+}
+
+.custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #D4CFC5;
+}
+
+/* Hide scrollbar for specific elements */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Focus ring styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-brand-accent-200 focus:ring-offset-1;
+}
+
+/* Button base styles */
+.btn-base {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200;
+}
+
+.btn-primary {
+  @apply btn-base bg-brand-accent-500 text-white hover:bg-brand-accent-600 active:bg-brand-accent-700;
+}
+
+.btn-secondary {
+  @apply btn-base bg-white text-light-text border border-light-border hover:border-light-border-hover hover:bg-light-bg;
+}
+
+.btn-ghost {
+  @apply btn-base bg-transparent text-light-text-secondary hover:bg-light-sidebar hover:text-light-text;
+}
+
+/* Input base styles */
+.input-base {
+  @apply w-full px-4 py-3 bg-white border border-light-border rounded-lg text-light-text placeholder-light-text-muted;
+  @apply focus:outline-none focus:ring-2 focus:ring-brand-accent-100 focus:border-brand-accent-300;
+  @apply transition-all duration-200;
+}
+
+/* Card styles */
+.card {
+  @apply bg-white border border-light-border rounded-xl;
+}
+
+.card-hover {
+  @apply card hover:border-light-border-hover hover:shadow-soft transition-all duration-200;
+}
+
+/* Layout stability utilities */
+.stable-layout {
+  transform: translateZ(0);
+  will-change: contents;
+  contain: layout style;
+}
+
+/* Prevent layout shifts on buttons */
+button, .btn-base, .btn-primary, .btn-secondary, .btn-ghost {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Input container stability */
+.input-container {
+  position: relative;
+  contain: layout;
+}
+
+/* Smooth transitions without layout shifts */
+.transition-stable {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transform: translateZ(0);
+}
+
+/* Process card animations */
+.process-card-enter {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Video container - prevent layout shift */
+.video-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  contain: strict;
+}
+
+/* Artifact card hover effect without layout shift */
+.artifact-card {
+  transform: translateZ(0);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.artifact-card:hover {
+  transform: translateZ(0);
+}
