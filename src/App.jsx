@@ -299,13 +299,17 @@ function App() {
 
   const handleSelectSession = (selectedId) => {
     if (selectedId === sessionId) return;
-    const sessionData = loadSessionData(selectedId);
-    setProcessCards(sessionData.processCards);
-    setAllFiles(sessionData.allFiles);
+
+    // Call the session hook's selectSession to update sessionId
+    const sessionData = selectSessionHandler(selectedId);
+
+    // Restore session UI state
+    setProcessCards(sessionData?.processCards || []);
+    setAllFiles(sessionData?.allFiles || []);
     setUploadedFiles([]);
-    setActiveArtifact(sessionData.allFiles[0] || null);
+    setActiveArtifact(sessionData?.allFiles?.[0] || null);
     setMessages([]);
-    setRightSidebarCollapsed(sessionData.allFiles.length === 0);
+    setRightSidebarCollapsed(!sessionData?.allFiles?.length);
   };
 
   const handleDeleteSession = async (deleteId) => {
