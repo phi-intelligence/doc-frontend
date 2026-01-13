@@ -10,16 +10,18 @@ import { API_BASE } from '../utils/constants';
  * @param {number|null} currentPage - Current page number
  * @param {Object|null} integrations - Connect integrations state {drive: bool, gmail: bool}
  * @param {AbortSignal|null} signal - AbortController signal for request cancellation
+ * @param {string|null} skillHint - Pre-selected skill from frontend (bypasses LLM skill selection)
  * @returns {Promise<Object>} Response with message and artifacts
  */
-export const sendMessage = async (message, contextFiles = [], sessionId, activeDocument = null, currentPage = null, integrations = null, signal = null) => {
+export const sendMessage = async (message, contextFiles = [], sessionId, activeDocument = null, currentPage = null, integrations = null, signal = null, skillHint = null) => {
   const response = await apiClient.post('/chat', {
     message,
     context_files: contextFiles,
     session_id: sessionId,
     active_document: activeDocument,
     current_page: currentPage,
-    integrations: integrations
+    integrations: integrations,
+    skill_hint: skillHint
   }, {
     signal: signal
   });

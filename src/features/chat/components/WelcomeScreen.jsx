@@ -2,8 +2,73 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Send, Paperclip, RefreshCw, Clock, ChevronDown, Sparkles,
-  FileText, Presentation, FileSpreadsheet, FileImage
+  FileText, Presentation, FileSpreadsheet, FileImage, Image, Code, ScanLine
 } from 'lucide-react';
+
+// Skill-specific suggestions
+const skillSuggestions = {
+  docx: [
+    { icon: FileText, label: "Draft Contract", prompt: "Draft a freelance service agreement for a web development project." },
+    { icon: FileText, label: "Write Resume", prompt: "Create a professional resume for a software engineer." },
+    { icon: FileText, label: "Business Proposal", prompt: "Write a business proposal for a consulting engagement." },
+    { icon: FileText, label: "Meeting Minutes", prompt: "Create a meeting minutes template with action items." },
+  ],
+  xlsx: [
+    { icon: FileSpreadsheet, label: "Budget Template", prompt: "Create a budget spreadsheet for a marketing campaign." },
+    { icon: FileSpreadsheet, label: "Sales Report", prompt: "Generate a quarterly sales report with charts." },
+    { icon: FileSpreadsheet, label: "Invoice Template", prompt: "Create a professional invoice template with formulas." },
+    { icon: FileSpreadsheet, label: "Project Tracker", prompt: "Build a project task tracker with status indicators." },
+  ],
+  pptx: [
+    { icon: Presentation, label: "Pitch Deck", prompt: "Create a pitch deck structure for a new AI startup." },
+    { icon: Presentation, label: "Quarterly Review", prompt: "Design a quarterly business review presentation." },
+    { icon: Presentation, label: "Product Demo", prompt: "Create slides for a product feature demonstration." },
+    { icon: Presentation, label: "Training Deck", prompt: "Build a training presentation for new employees." },
+  ],
+  pdf: [
+    { icon: FileImage, label: "Fill PDF Form", prompt: "Help me fill out this PDF form with my details." },
+    { icon: FileImage, label: "Merge PDFs", prompt: "Merge multiple PDF documents into one." },
+    { icon: FileImage, label: "Extract Text", prompt: "Extract all text content from this PDF document." },
+    { icon: FileImage, label: "Create PDF", prompt: "Create a professional PDF report with charts." },
+  ],
+  imagegen: [
+    { icon: Image, label: "Product Photo", prompt: "Generate a professional product photo for an e-commerce listing." },
+    { icon: Image, label: "Social Banner", prompt: "Create a social media banner for a tech brand." },
+    { icon: Image, label: "Illustration", prompt: "Generate an illustration for a blog post about AI." },
+    { icon: Image, label: "Logo Concept", prompt: "Create logo concept ideas for a coffee shop." },
+  ],
+  'frontend-design': [
+    { icon: Code, label: "Landing Page", prompt: "Create a React landing page component for a SaaS product." },
+    { icon: Code, label: "Dashboard", prompt: "Build a dashboard component with charts and metrics." },
+    { icon: Code, label: "Form Component", prompt: "Create a multi-step form component with validation." },
+    { icon: Code, label: "Card Grid", prompt: "Design a responsive card grid for a portfolio site." },
+  ],
+  'handwritten-ocr': [
+    { icon: ScanLine, label: "Extract Notes", prompt: "Extract text from my handwritten meeting notes." },
+    { icon: ScanLine, label: "Digitize Form", prompt: "Digitize this handwritten form into a document." },
+    { icon: ScanLine, label: "Convert Letter", prompt: "Convert this handwritten letter to typed text." },
+    { icon: ScanLine, label: "Transcribe", prompt: "Transcribe my handwritten notes into a Word document." },
+  ],
+  // Default suggestions for unified mode (no skill)
+  default: [
+    { icon: FileText, label: "Draft a Contract", prompt: "Draft a freelance service agreement for a web development project." },
+    { icon: Presentation, label: "Create Pitch Deck", prompt: "Create a pitch deck structure for a new AI startup." },
+    { icon: FileSpreadsheet, label: "Analyze Budget", prompt: "Create a budget spreadsheet for a marketing campaign." },
+    { icon: FileImage, label: "Extract Invoice", prompt: "I need to extract data from an invoice image." },
+  ]
+};
+
+// Skill display names and subtitles
+const skillInfo = {
+  docx: { name: 'Word Documents', subtitle: 'Create and edit professional documents' },
+  xlsx: { name: 'Excel Spreadsheets', subtitle: 'Work with data, formulas, and charts' },
+  pptx: { name: 'Presentations', subtitle: 'Design slides and pitch decks' },
+  pdf: { name: 'PDF Processing', subtitle: 'Create, edit, and extract from PDFs' },
+  imagegen: { name: 'Image Generation', subtitle: 'Create AI-generated images' },
+  'frontend-design': { name: 'Frontend Design', subtitle: 'Generate React components and UI' },
+  'handwritten-ocr': { name: 'Handwritten OCR', subtitle: 'Extract text from handwritten content' },
+  default: { name: 'Phi Docs', subtitle: 'What would you like to create today?' }
+};
 
 /**
  * Welcome screen component shown when no conversations exist
@@ -11,8 +76,9 @@ import {
  * @param {Function} onUpload - Callback when upload button is clicked
  * @param {Object} fileInputRef - Ref to file input element
  * @param {boolean} isUploading - Whether file upload is in progress
+ * @param {string} skill - Optional skill hint from URL (e.g., 'docx', 'xlsx')
  */
-const WelcomeScreen = ({ onSend, onUpload, fileInputRef, isUploading }) => {
+const WelcomeScreen = ({ onSend, onUpload, fileInputRef, isUploading, skill = null }) => {
   const [val, setVal] = useState("");
 
   const handleSubmit = (e) => {
@@ -22,12 +88,9 @@ const WelcomeScreen = ({ onSend, onUpload, fileInputRef, isUploading }) => {
     }
   };
 
-  const suggestions = [
-    { icon: FileText, label: "Draft a Contract", prompt: "Draft a freelance service agreement for a web development project." },
-    { icon: Presentation, label: "Create Pitch Deck", prompt: "Create a pitch deck structure for a new AI startup." },
-    { icon: FileSpreadsheet, label: "Analyze Budget", prompt: "Create a budget spreadsheet for a marketing campaign." },
-    { icon: FileImage, label: "Extract Invoice", prompt: "I need to extract data from an invoice image." },
-  ];
+  // Get skill-specific or default suggestions
+  const suggestions = skillSuggestions[skill] || skillSuggestions.default;
+  const info = skillInfo[skill] || skillInfo.default;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-6 overflow-y-auto bg-light-bg">
@@ -43,10 +106,14 @@ const WelcomeScreen = ({ onSend, onUpload, fileInputRef, isUploading }) => {
             <Sparkles className="w-full h-full text-brand-accent-500 hidden" />
           </div>
           <h1 className="text-2xl md:text-3xl font-display font-semibold text-light-text mb-2">
-            Hi, I'm <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent-400 to-brand-accent-600">Phi Docs</span>
+            {skill ? (
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent-400 to-brand-accent-600">{info.name}</span>
+            ) : (
+              <>Hi, I'm <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent-400 to-brand-accent-600">Phi Docs</span></>
+            )}
           </h1>
           <p className="text-sm text-light-text-secondary max-w-md mx-auto">
-            What would you like to create today?
+            {info.subtitle}
           </p>
         </div>
 
