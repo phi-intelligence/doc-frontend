@@ -3,25 +3,42 @@ import { API_BASE } from '../utils/constants';
 
 /**
  * Send a chat message to the backend
- * @param {string} message - User message
- * @param {Array<string>} contextFiles - Context file names
- * @param {string} sessionId - Session identifier
- * @param {string|null} activeDocument - Active document filename
- * @param {number|null} currentPage - Current page number
- * @param {Object|null} integrations - Connect integrations state {drive: bool, gmail: bool}
- * @param {AbortSignal|null} signal - AbortController signal for request cancellation
- * @param {string|null} skillHint - Pre-selected skill from frontend (bypasses LLM skill selection)
- * @returns {Promise<Object>} Response with message and artifacts
+ * @param {string} message - User's message
+ * @param {Array} files - Array of filenames being referenced
+ * @param {string} sessionId - Current session ID
+ * @param {string} activeFile - Currently active file in preview
+ * @param {number} currentPage - Current page number (for PDFs/presentations)
+ * @param {Array} connectors - Active connectors (Gmail, Drive, etc.)
+ * @param {AbortSignal} signal - AbortController signal for cancellation
+ * @param {string|null} skillHint - Pre-selected skill from URL (bypasses LLM skill selection)
+ * @param {string|null} templateId - Selected template ID
+ * @param {Array} webUrls - URLs to scrape for web mode
+ * @param {boolean} webModeEnabled - Whether web scraping mode is enabled
  */
-export const sendMessage = async (message, contextFiles = [], sessionId, activeDocument = null, currentPage = null, integrations = null, signal = null, skillHint = null) => {
+export async function sendMessage(
+  message,
+  files = [],
+  sessionId,
+  activeFile = null,
+  currentPage = 1,
+  connectors = [],
+  signal = null,
+  skillHint = null,
+  templateId = null,
+  webUrls = [],
+  webModeEnabled = false
+) {
   const response = await apiClient.post('/chat', {
     message,
-    context_files: contextFiles,
     session_id: sessionId,
-    active_document: activeDocument,
+    context_files: files,
+    active_document: activeFile,
     current_page: currentPage,
-    integrations: integrations,
-    skill_hint: skillHint
+    integrations: connectors,
+    skill_hint: skillHint,
+    template_id: templateId,
+    web_urls: webUrls,
+    web_mode_enabled: webModeEnabled
   }, {
     signal: signal
   });
