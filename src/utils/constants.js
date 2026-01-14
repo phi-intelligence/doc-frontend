@@ -1,5 +1,5 @@
 // Application constants
-export const API_BASE = '';
+export const API_BASE = '/api';
 
 // Storage keys for localStorage
 export const STORAGE_KEYS = {
