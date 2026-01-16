@@ -26,7 +26,7 @@ const MermaidPreview = ({ chart }) => {
     }
   }, [chart]);
 
-  return <div ref={ref} className="w-full h-full overflow-auto flex items-center justify-center p-4 bg-white" />;
+  return <div ref={ref} className="w-full h-full overflow-auto flex items-center justify-center p-4 bg-white dark:bg-dark-surface" />;
 };
 
 export default MermaidPreview;

@@ -1,103 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Sparkles, ArrowLeft, Loader2, Copy, CheckCircle, RefreshCw,
-  Twitter, Linkedin, Facebook, Instagram, Hash, MessageSquare, Image
+  Sparkles, ArrowLeft, Loader2, Copy, Check, Hash, MessageSquare, Image, Save
 } from 'lucide-react';
 import { sendMessage } from '../api/chat';
+import { getFileUrl } from '../api/files';
 import { useProgressStream } from '../hooks/useProgressStream';
 import ProcessCard from '../components/progress/ProcessCard';
+import { useTheme } from '../context/ThemeContext';
 
-// Platform configurations
-const platforms = [
-  { id: 'twitter', name: 'Twitter / X', icon: Twitter, maxLength: 280, color: 'from-sky-400 to-sky-500' },
-  { id: 'instagram', name: 'Instagram', icon: Instagram, maxLength: 2200, color: 'from-pink-500 to-rose-500' },
-  { id: 'linkedin', name: 'LinkedIn', icon: Linkedin, maxLength: 3000, color: 'from-blue-600 to-blue-700' },
-  { id: 'facebook', name: 'Facebook', icon: Facebook, maxLength: 63206, color: 'from-blue-500 to-blue-600' }
-];
+const ContentGenerationPage = () => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
-// Tones
-const tones = [
-  { value: 'professional', label: 'Professional' },
-  { value: 'casual', label: 'Casual' },
-  { value: 'humorous', label: 'Humorous' },
-  { value: 'inspiring', label: 'Inspiring' },
-  { value: 'educational', label: 'Educational' },
-  { value: 'promotional', label: 'Promotional' },
-  { value: 'storytelling', label: 'Storytelling' }
-];
-
-// Content types
-const contentTypes = [
-  { value: 'post', label: 'Regular Post' },
-  { value: 'thread', label: 'Thread / Carousel' },
-  { value: 'announcement', label: 'Announcement' },
-  { value: 'question', label: 'Question / Poll' },
-  { value: 'tip', label: 'Tips & How-to' }
-];
-
-function ContentGenerationPage() {
-  const [selectedPlatform, setSelectedPlatform] = useState(platforms[0]);
+  const [topic, setTopic] = useState('');
+  const [description, setDescription] = useState('');
+  const [wordLength, setWordLength] = useState('500');
+  const [includeHashtags, setIncludeHashtags] = useState(false);
+  const [createImage, setCreateImage] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedContent, setGeneratedContent] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [generatedImage, setGeneratedImage] = useState(null);
+  const [generatedHashtags, setGeneratedHashtags] = useState([]);
   const [error, setError] = useState(null);
-  
-  // Form data
-  const [formData, setFormData] = useState({
-    topic: '',
-    context: '',
-    tone: 'professional',
-    content_type: 'post',
-    include_hashtags: true,
-    include_emoji: true,
-    call_to_action: ''
-  });
+  const [copied, setCopied] = useState(false);
 
   // Chat pipeline state
   const [sessionId] = useState(() => `content-gen-${Date.now()}`);
   const [processCard, setProcessCard] = useState(null);
   const progressStream = useProgressStream(sessionId);
 
+  const processCardRef = useRef(processCard);
+
+  // Keep ref in sync with processCard
+  useEffect(() => {
+    processCardRef.current = processCard;
+  }, [processCard]);
+
   // Update process card with progress stream
   useEffect(() => {
-    if (progressStream.items.length > 0 && processCard && processCard.status === 'processing') {
-      setProcessCard(prev => prev ? { ...prev, steps: progressStream.items } : null);
+    const currentCard = processCardRef.current;
+    if (progressStream.items.length > 0 && currentCard && currentCard.status === 'processing') {
+      const currentStepsLength = currentCard.steps?.length || 0;
+      if (progressStream.items.length !== currentStepsLength) {
+        setProcessCard(prev => {
+          if (!prev || prev.status !== 'processing') return prev;
+          return { ...prev, steps: [...progressStream.items] };
+        });
+      }
     }
-  }, [progressStream.items, processCard]);
-
-  // Build message based on form data
-  const buildMessage = () => {
-    return `Generate social media content for ${selectedPlatform.name}.
-Topic: ${formData.topic}
-${formData.context ? `Additional context: ${formData.context}` : ''}
-Tone: ${formData.tone}
-Content type: ${formData.content_type}
-${formData.include_hashtags ? 'Include relevant hashtags' : 'Do not include hashtags'}
-${formData.include_emoji ? 'Include appropriate emojis' : 'Do not include emojis'}
-${formData.call_to_action ? `Call to action: ${formData.call_to_action}` : ''}
-Maximum character limit: ${selectedPlatform.maxLength} characters
-
-Please generate engaging, platform-appropriate content. Return the content in a structured format with the main text, any hashtags separately listed, and an image suggestion if applicable.`;
-  };
+  }, [progressStream.items.length]);
 
   // Generate content via chat pipeline
   const handleGenerate = async () => {
-    if (!formData.topic.trim()) {
+    if (!topic.trim()) {
       setError('Please enter a topic');
       return;
     }
 
     setIsGenerating(true);
     setError(null);
-    setGeneratedContent(null);
+    setGeneratedContent('');
+    setGeneratedImage(null);
+    setGeneratedHashtags([]);
     setCopied(false);
 
     // Clear previous progress
     progressStream.clear();
 
     // Build the message
-    const message = buildMessage();
+    const hashtagInstruction = includeHashtags 
+      ? ' Include relevant hashtags for social media.' 
+      : '';
+    
+    const imageInstruction = createImage
+      ? ' Generate this content as a visually appealing image with the text overlaid. Create a professional content image suitable for sharing.'
+      : '';
+    
+    const wordLengthNum = parseInt(wordLength) || 500;
+    
+    const message = `Generate content based on this topic: "${topic.trim()}"
+${description ? `Description/Context: ${description.trim()}` : ''}
+Word length: Approximately ${wordLengthNum} words
+${hashtagInstruction}${imageInstruction}
+
+Create engaging, well-structured content that matches the topic and word count requirement.`;
 
     // Create process card for UI
     const cardId = `card-${Date.now()}`;
@@ -110,7 +97,9 @@ Please generate engaging, platform-appropriate content. Return the content in a 
     });
 
     try {
-      // Send via chat pipeline with skill hint
+      // Send via chat pipeline with skill hint for image generation if needed
+      const skillHint = createImage ? 'imagegen' : null;
+      
       const result = await sendMessage(
         message,
         [],  // no context files
@@ -119,7 +108,7 @@ Please generate engaging, platform-appropriate content. Return the content in a 
         null,  // current page
         null,  // integrations
         null,  // signal
-        'content_generation'  // skill_hint
+        skillHint  // skill hint for image generation
       );
 
       // Update process card with completion
@@ -129,33 +118,46 @@ Please generate engaging, platform-appropriate content. Return the content in a 
         finalResult: result.response
       } : null);
 
-      // Parse the response - extract content, hashtags, image suggestion
-      // The LLM should return structured content
+      // Handle image artifacts first
+      if (result.new_artifacts && result.new_artifacts.length > 0) {
+        const imageArtifact = result.new_artifacts.find(f => 
+          f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.jpeg')
+        );
+        
+        if (imageArtifact) {
+          setGeneratedImage(getFileUrl(imageArtifact));
+          // If image is generated, still try to extract text content and hashtags
+          const responseText = result.response || '';
+          const hashtagMatch = responseText.match(/#[\w]+/g);
+          let content = responseText;
+          let hashtags = [];
+
+          if (includeHashtags && hashtagMatch) {
+            content = responseText.replace(/#[\w]+/g, '').trim();
+            hashtags = hashtagMatch.map(tag => tag.replace('#', ''));
+          }
+
+          setGeneratedContent(content || responseText);
+          setGeneratedHashtags(hashtags);
+          return; // Exit early if image was found
+        }
+      }
+
+      // Parse the response for text content
       const responseText = result.response || '';
       
-      // Simple parsing - the agent should return structured content
-      // For robustness, we handle plain text too
-      const content = responseText;
-      const hashtags = [];
-      let imageSuggestion = null;
+      // Extract hashtags if requested
+      const hashtagMatch = responseText.match(/#[\w]+/g);
+      let content = responseText;
+      let hashtags = [];
 
-      // Try to extract hashtags from the response
-      const hashtagMatches = responseText.match(/#\w+/g);
-      if (hashtagMatches) {
-        hashtags.push(...hashtagMatches);
+      if (includeHashtags && hashtagMatch) {
+        content = responseText.replace(/#[\w]+/g, '').trim();
+        hashtags = hashtagMatch.map(tag => tag.replace('#', ''));
       }
 
-      // Check if there's an image suggestion section
-      const imageSuggestionMatch = responseText.match(/Image Suggestion[:\s]*(.+?)(?:\n|$)/i);
-      if (imageSuggestionMatch) {
-        imageSuggestion = imageSuggestionMatch[1].trim();
-      }
-
-      setGeneratedContent({
-        content: content,
-        hashtags: hashtags,
-        image_suggestion: imageSuggestion
-      });
+      setGeneratedContent(content || responseText);
+      setGeneratedHashtags(hashtags);
     } catch (err) {
       setProcessCard(prev => prev ? {
         ...prev,
@@ -168,22 +170,12 @@ Please generate engaging, platform-appropriate content. Return the content in a 
     }
   };
 
-  // Retry handler
-  const handleRetry = () => {
-    handleGenerate();
-  };
-
-  // Regenerate content
-  const handleRegenerate = () => {
-    handleGenerate();
-  };
-
   // Copy to clipboard
   const handleCopy = async () => {
-    if (!generatedContent?.content) return;
+    if (!generatedContent) return;
     
     try {
-      await navigator.clipboard.writeText(generatedContent.content);
+      await navigator.clipboard.writeText(generatedContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -191,30 +183,73 @@ Please generate engaging, platform-appropriate content. Return the content in a 
     }
   };
 
-  // Character count
-  const charCount = generatedContent?.content?.length || 0;
-  const isOverLimit = charCount > selectedPlatform.maxLength;
-
-  const PlatformIcon = selectedPlatform.icon;
+  // Save content
+  const handleSave = async () => {
+    if (!generatedContent && !generatedImage) return;
+    
+    try {
+      if (generatedImage) {
+        // Save image
+        const response = await fetch(generatedImage);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `content-image-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        // Save text content
+        const content = generatedContent + (generatedHashtags.length > 0 
+          ? '\n\n' + generatedHashtags.map(tag => `#${tag}`).join(' ')
+          : '');
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `content-${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (err) {
+      setError('Failed to save content');
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-light-bg">
+    <div className={`min-h-screen ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-light-bg/80 backdrop-blur-md border-b border-light-border">
+      <header className={`sticky top-0 z-50 backdrop-blur-md border-b ${
+        isDark 
+          ? 'bg-dark-bg/80 border-dark-border' 
+          : 'bg-light-bg/80 border-light-border'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Link 
                 to="/"
-                className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-lg transition-all"
+                className={`p-2 rounded-lg transition-all ${
+                  isDark
+                    ? 'text-dark-text-secondary hover:text-dark-text hover:bg-dark-surface'
+                    : 'text-light-text-secondary hover:text-light-text hover:bg-light-surface'
+                }`}
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-brand-accent-100 rounded-lg">
-                  <Sparkles className="w-5 h-5 text-brand-accent-600" />
+                <div className={`p-2 rounded-lg ${
+                  isDark ? 'bg-brand-accent-500/20' : 'bg-brand-accent-100'
+                }`}>
+                  <Sparkles className={`w-5 h-5 ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-600'}`} />
                 </div>
-                <span className="text-lg font-semibold text-light-text">Content Generation</span>
+                <span className={`text-lg font-semibold ${isDark ? 'text-dark-text' : 'text-light-text'}`}>
+                  Content Generation
+                </span>
               </div>
             </div>
           </div>
@@ -222,147 +257,124 @@ Please generate engaging, platform-appropriate content. Return the content in a 
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Platform Selector */}
-        <div className="mb-8">
-          <h2 className="text-sm font-semibold text-light-text-secondary uppercase tracking-wider mb-4">
-            Select Platform
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {platforms.map((platform) => {
-              const Icon = platform.icon;
-              const isSelected = selectedPlatform.id === platform.id;
-              
-              return (
-                <button
-                  key={platform.id}
-                  onClick={() => setSelectedPlatform(platform)}
-                  className={`relative p-4 rounded-xl border-2 transition-all text-left ${
-                    isSelected
-                      ? 'border-brand-accent-500 bg-brand-accent-50'
-                      : 'border-light-border bg-white hover:border-brand-accent-300'
-                  }`}
-                >
-                  {isSelected && (
-                    <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-lg bg-gradient-to-r ${platform.color}`} />
-                  )}
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 bg-gradient-to-br ${platform.color}`}>
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <h3 className="font-semibold text-light-text text-sm">{platform.name}</h3>
-                  <p className="text-xs text-light-text-secondary">Max {platform.maxLength.toLocaleString()} chars</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Panel - Form */}
           <div className="space-y-6">
-            <div className="bg-white rounded-xl border border-light-border p-6">
-              <h3 className="font-semibold text-light-text mb-6 flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-brand-accent-500" />
+            <div className={`rounded-xl border p-6 ${
+              isDark 
+                ? 'bg-dark-surface border-dark-border' 
+                : 'bg-white border-light-border'
+            }`}>
+              <h3 className={`font-semibold mb-6 flex items-center gap-2 ${
+                isDark ? 'text-dark-text' : 'text-light-text'
+              }`}>
+                <MessageSquare className={`w-4 h-4 ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} />
                 Content Details
               </h3>
 
               <div className="space-y-5">
                 {/* Topic */}
                 <div>
-                  <label className="block text-sm font-medium text-light-text mb-2">
-                    Topic / Subject <span className="text-red-500">*</span>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
+                  }`}>
+                    Topic <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    value={formData.topic}
-                    onChange={(e) => setFormData({...formData, topic: e.target.value})}
-                    placeholder="What should the post be about?"
-                    className="w-full px-4 py-2.5 border border-light-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent-200 focus:border-brand-accent-400"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="What should the content be about?"
+                    className={`w-full px-4 py-2.5 rounded-lg text-sm transition-all ${
+                      isDark
+                        ? 'bg-dark-sidebar border-dark-border text-dark-text placeholder-dark-text-muted focus:border-brand-accent-500'
+                        : 'bg-light-bg border-light-border text-light-text placeholder-light-text-muted focus:border-brand-accent-500'
+                    } border focus:outline-none focus:ring-2 focus:ring-brand-accent-500/20`}
+                    disabled={isGenerating}
                   />
                 </div>
 
-                {/* Context */}
+                {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-light-text mb-2">
-                    Additional Context
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
+                  }`}>
+                    Description (Optional)
                   </label>
                   <textarea
-                    value={formData.context}
-                    onChange={(e) => setFormData({...formData, context: e.target.value})}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     rows={3}
-                    placeholder="Any specific details, key points, or brand voice guidelines..."
-                    className="w-full px-4 py-2.5 border border-light-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-brand-accent-200 focus:border-brand-accent-400"
+                    placeholder="Any specific details, key points, or context..."
+                    className={`w-full px-4 py-2.5 rounded-lg text-sm resize-none transition-all ${
+                      isDark
+                        ? 'bg-dark-sidebar border-dark-border text-dark-text placeholder-dark-text-muted focus:border-brand-accent-500'
+                        : 'bg-light-bg border-light-border text-light-text placeholder-light-text-muted focus:border-brand-accent-500'
+                    } border focus:outline-none focus:ring-2 focus:ring-brand-accent-500/20`}
+                    disabled={isGenerating}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Content Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-light-text mb-2">
-                      Content Type
-                    </label>
-                    <select
-                      value={formData.content_type}
-                      onChange={(e) => setFormData({...formData, content_type: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-light-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-accent-200 focus:border-brand-accent-400"
-                    >
-                      {contentTypes.map((type) => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Tone */}
-                  <div>
-                    <label className="block text-sm font-medium text-light-text mb-2">
-                      Tone
-                    </label>
-                    <select
-                      value={formData.tone}
-                      onChange={(e) => setFormData({...formData, tone: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-light-border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-accent-200 focus:border-brand-accent-400"
-                    >
-                      {tones.map((tone) => (
-                        <option key={tone.value} value={tone.value}>{tone.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Call to Action */}
+                {/* Word Length */}
                 <div>
-                  <label className="block text-sm font-medium text-light-text mb-2">
-                    Call to Action (Optional)
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
+                  }`}>
+                    Word Length
                   </label>
                   <input
-                    type="text"
-                    value={formData.call_to_action}
-                    onChange={(e) => setFormData({...formData, call_to_action: e.target.value})}
-                    placeholder="e.g., Visit our website, DM for details"
-                    className="w-full px-4 py-2.5 border border-light-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent-200 focus:border-brand-accent-400"
+                    type="number"
+                    value={wordLength}
+                    onChange={(e) => setWordLength(e.target.value)}
+                    placeholder="500"
+                    min="100"
+                    max="5000"
+                    className={`w-full px-4 py-2.5 rounded-lg text-sm transition-all ${
+                      isDark
+                        ? 'bg-dark-sidebar border-dark-border text-dark-text placeholder-dark-text-muted focus:border-brand-accent-500'
+                        : 'bg-light-bg border-light-border text-light-text placeholder-light-text-muted focus:border-brand-accent-500'
+                    } border focus:outline-none focus:ring-2 focus:ring-brand-accent-500/20`}
+                    disabled={isGenerating}
                   />
                 </div>
 
                 {/* Options */}
-                <div className="flex gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer">
+                <div className="space-y-3">
+                  <label className={`flex items-center gap-2 cursor-pointer ${
+                    isDark ? 'text-dark-text' : 'text-light-text'
+                  }`}>
                     <input
                       type="checkbox"
-                      checked={formData.include_hashtags}
-                      onChange={(e) => setFormData({...formData, include_hashtags: e.target.checked})}
-                      className="w-4 h-4 rounded border-light-border text-brand-accent-500 focus:ring-brand-accent-200"
+                      checked={includeHashtags}
+                      onChange={(e) => setIncludeHashtags(e.target.checked)}
+                      className={`w-4 h-4 rounded border-2 transition-all ${
+                        isDark
+                          ? 'border-dark-border bg-dark-sidebar checked:bg-brand-accent-500 checked:border-brand-accent-500'
+                          : 'border-light-border bg-light-bg checked:bg-brand-accent-500 checked:border-brand-accent-500'
+                      } focus:ring-2 focus:ring-brand-accent-500/20`}
+                      disabled={isGenerating}
                     />
-                    <span className="text-sm text-light-text flex items-center gap-1">
+                    <span className="text-sm font-medium flex items-center gap-1">
                       <Hash className="w-3 h-3" /> Include Hashtags
                     </span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className={`flex items-center gap-2 cursor-pointer ${
+                    isDark ? 'text-dark-text' : 'text-light-text'
+                  }`}>
                     <input
                       type="checkbox"
-                      checked={formData.include_emoji}
-                      onChange={(e) => setFormData({...formData, include_emoji: e.target.checked})}
-                      className="w-4 h-4 rounded border-light-border text-brand-accent-500 focus:ring-brand-accent-200"
+                      checked={createImage}
+                      onChange={(e) => setCreateImage(e.target.checked)}
+                      className={`w-4 h-4 rounded border-2 transition-all ${
+                        isDark
+                          ? 'border-dark-border bg-dark-sidebar checked:bg-brand-accent-500 checked:border-brand-accent-500'
+                          : 'border-light-border bg-light-bg checked:bg-brand-accent-500 checked:border-brand-accent-500'
+                      } focus:ring-2 focus:ring-brand-accent-500/20`}
+                      disabled={isGenerating}
                     />
-                    <span className="text-sm text-light-text">Include Emojis</span>
+                    <span className="text-sm font-medium flex items-center gap-1">
+                      <Image className="w-3 h-3" /> Create Image
+                    </span>
                   </label>
                 </div>
               </div>
@@ -370,10 +382,13 @@ Please generate engaging, platform-appropriate content. Return the content in a 
               {/* Generate Button */}
               <button
                 onClick={handleGenerate}
-                disabled={isGenerating}
-                className="w-full mt-6 py-3 bg-gradient-to-r from-brand-accent-500 to-brand-accent-600 text-white rounded-xl font-semibold
-                           hover:from-brand-accent-600 hover:to-brand-accent-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                           flex items-center justify-center gap-2"
+                disabled={!topic.trim() || isGenerating}
+                className={`w-full mt-6 py-3 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed
+                           flex items-center justify-center gap-2 ${
+                  isDark
+                    ? 'bg-gradient-to-r from-brand-accent-500 to-brand-accent-600 text-white hover:from-brand-accent-600 hover:to-brand-accent-700'
+                    : 'bg-gradient-to-r from-brand-accent-500 to-brand-accent-600 text-white hover:from-brand-accent-600 hover:to-brand-accent-700'
+                  }`}
               >
                 {isGenerating ? (
                   <>
@@ -387,58 +402,96 @@ Please generate engaging, platform-appropriate content. Return the content in a 
                   </>
                 )}
               </button>
+
+              {error && !processCard && (
+                <div className={`mt-4 p-4 rounded-xl text-sm ${
+                  isDark
+                    ? 'bg-red-900/30 border border-red-800 text-red-300'
+                    : 'bg-red-50 border border-red-200 text-red-700'
+                }`}>
+                  {error}
+                </div>
+              )}
             </div>
 
-            {error && !processCard && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
-                {error}
-              </div>
+            {/* Process Card */}
+            {processCard && (processCard.status === 'processing' || processCard.status === 'error') && (
+              <ProcessCard
+                title="Content Generation"
+                query={processCard.query}
+                steps={processCard.steps}
+                finalResult={processCard.finalResult}
+                artifacts={[]}
+                status={processCard.status}
+                isCollapsed={processCard.isCollapsed}
+                onToggle={() => setProcessCard(prev => prev ? { ...prev, isCollapsed: !prev.isCollapsed } : null)}
+                onRetry={handleGenerate}
+              />
             )}
           </div>
 
           {/* Right Panel - Generated Content */}
-          <div className="bg-white rounded-xl border border-light-border p-6">
+          <div className={`rounded-xl border p-6 ${
+            isDark 
+              ? 'bg-dark-surface border-dark-border' 
+              : 'bg-white border-light-border'
+          }`}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-light-text flex items-center gap-2">
-                <PlatformIcon className="w-4 h-4 text-brand-accent-500" />
-                Generated Content
+              <h3 className={`font-semibold flex items-center gap-2 ${
+                isDark ? 'text-dark-text' : 'text-light-text'
+              }`}>
+                {generatedImage ? (
+                  <Image className={`w-4 h-4 ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} />
+                ) : (
+                  <MessageSquare className={`w-4 h-4 ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} />
+                )}
+                {generatedImage ? 'Generated Content Image' : 'Generated Content'}
               </h3>
-              {generatedContent && (
+              {(generatedContent || generatedImage) && (
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={handleRegenerate}
-                    disabled={isGenerating}
-                    className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-lg transition-colors disabled:opacity-50"
-                    title="Regenerate"
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
-                  </button>
-                  <button
-                    onClick={handleCopy}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                      copied 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-brand-accent-50 text-brand-accent-600 hover:bg-brand-accent-100'
+                    onClick={handleSave}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                      isDark
+                        ? 'bg-dark-sidebar border border-dark-border text-dark-text hover:bg-dark-surface'
+                        : 'bg-light-surface border border-light-border text-light-text hover:bg-light-bg'
                     }`}
                   >
-                    {copied ? (
-                      <>
-                        <CheckCircle className="w-4 h-4" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        Copy
-                      </>
-                    )}
+                    <Save className="w-4 h-4" />
+                    Save
                   </button>
+                  {!generatedImage && (
+                    <button
+                      onClick={handleCopy}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                        copied
+                          ? isDark
+                            ? 'bg-green-900/30 text-green-300'
+                            : 'bg-green-100 text-green-700'
+                          : isDark
+                            ? 'bg-brand-accent-500/20 border border-brand-accent-500/30 text-brand-accent-400 hover:bg-brand-accent-500/30'
+                            : 'bg-brand-accent-50 border border-brand-accent-200 text-brand-accent-600 hover:bg-brand-accent-100'
+                      }`}
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-4 h-4" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          Copy
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Show ProcessCard during/after processing, otherwise show results or placeholder */}
-            {processCard && (processCard.status === 'processing' || (processCard.status === 'completed' && !generatedContent) || processCard.status === 'error') ? (
+            {processCard && (processCard.status === 'processing' || (processCard.status === 'completed' && !generatedContent && !generatedImage) || processCard.status === 'error') ? (
               <div className="space-y-4">
                 <ProcessCard
                   title="Content Generation"
@@ -449,57 +502,61 @@ Please generate engaging, platform-appropriate content. Return the content in a 
                   status={processCard.status}
                   isCollapsed={processCard.isCollapsed}
                   onToggle={() => setProcessCard(prev => prev ? { ...prev, isCollapsed: !prev.isCollapsed } : null)}
-                  onRetry={handleRetry}
+                  onRetry={handleGenerate}
                 />
               </div>
-            ) : generatedContent ? (
+            ) : generatedContent || generatedImage ? (
               <div className="space-y-4">
-                {/* Content Preview */}
-                <div className="min-h-[200px] p-4 rounded-xl bg-light-bg border border-light-border">
-                  <div className="prose prose-sm max-w-none">
-                    <p className="whitespace-pre-wrap text-light-text leading-relaxed">
-                      {generatedContent.content}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Character Count */}
-                <div className={`flex items-center justify-between text-sm ${isOverLimit ? 'text-red-600' : 'text-light-text-secondary'}`}>
-                  <span>Character count</span>
-                  <span className="font-medium">
-                    {charCount.toLocaleString()} / {selectedPlatform.maxLength.toLocaleString()}
-                  </span>
-                </div>
-
-                {/* Hashtags */}
-                {generatedContent.hashtags && generatedContent.hashtags.length > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium text-light-text mb-2">
-                      Extracted Hashtags
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {generatedContent.hashtags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-brand-accent-50 text-brand-accent-600 rounded-full text-sm"
-                        >
-                          <Hash className="w-3 h-3" />
-                          {tag.replace('#', '')}
-                        </span>
-                      ))}
-                    </div>
+                {/* Image Display */}
+                {generatedImage && (
+                  <div className={`aspect-square rounded-xl overflow-hidden border ${
+                    isDark ? 'bg-dark-sidebar border-dark-border' : 'bg-light-bg border-light-border'
+                  } flex items-center justify-center`}>
+                    <img
+                      src={generatedImage}
+                      alt="Generated content"
+                      className="max-w-full max-h-full object-contain"
+                    />
                   </div>
                 )}
 
-                {/* Image Suggestion */}
-                {generatedContent.image_suggestion && (
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <div className="flex items-start gap-3">
-                      <Image className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <div>
-                        <h4 className="font-medium text-blue-800 text-sm mb-1">Image Suggestion</h4>
-                        <p className="text-sm text-blue-700">{generatedContent.image_suggestion}</p>
-                      </div>
+                {/* Text Content Display */}
+                {generatedContent && !generatedImage && (
+                  <div className={`min-h-[200px] p-4 rounded-xl border ${
+                    isDark 
+                      ? 'bg-dark-sidebar border-dark-border' 
+                      : 'bg-light-bg border-light-border'
+                  }`}>
+                    <p className={`whitespace-pre-wrap leading-relaxed ${
+                      isDark ? 'text-dark-text' : 'text-light-text'
+                    }`}>
+                      {generatedContent}
+                    </p>
+                  </div>
+                )}
+
+                {/* Hashtags */}
+                {includeHashtags && generatedHashtags.length > 0 && (
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${
+                      isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'
+                    }`}>
+                      Hashtags
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {generatedHashtags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-sm ${
+                            isDark
+                              ? 'bg-brand-accent-500/20 text-brand-accent-400'
+                              : 'bg-brand-accent-50 text-brand-accent-600'
+                          }`}
+                        >
+                          <Hash className="w-3 h-3" />
+                          {tag}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -515,15 +572,23 @@ Please generate engaging, platform-appropriate content. Return the content in a 
                     status={processCard.status}
                     isCollapsed={true}
                     onToggle={() => setProcessCard(prev => prev ? { ...prev, isCollapsed: !prev.isCollapsed } : null)}
-                    onRetry={handleRetry}
+                    onRetry={handleGenerate}
                   />
                 )}
               </div>
             ) : (
-              <div className="min-h-[300px] rounded-xl bg-light-bg border border-light-border flex items-center justify-center">
+              <div className={`min-h-[300px] rounded-xl border flex items-center justify-center ${
+                isDark 
+                  ? 'bg-dark-sidebar border-dark-border' 
+                  : 'bg-light-bg border-light-border'
+              }`}>
                 <div className="text-center p-8">
-                  <Sparkles className="w-16 h-16 mx-auto text-light-text-muted opacity-30 mb-4" />
-                  <p className="text-light-text-secondary">Fill in the form and click Generate</p>
+                  <Sparkles className={`w-16 h-16 mx-auto mb-4 ${
+                    isDark ? 'text-dark-text-muted opacity-30' : 'text-light-text-muted opacity-30'
+                  }`} />
+                  <p className={isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}>
+                    Fill in the form and click Generate
+                  </p>
                 </div>
               </div>
             )}
@@ -532,6 +597,6 @@ Please generate engaging, platform-appropriate content. Return the content in a 
       </div>
     </div>
   );
-}
+};
 
 export default ContentGenerationPage;

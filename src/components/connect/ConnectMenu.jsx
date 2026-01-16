@@ -75,7 +75,7 @@ export default function ConnectMenu({
                     key={connector.id}
                     type="button"
                     onClick={() => onToggleConnector?.(connector.id)}
-                    className="flex items-center gap-1 px-2 py-1 bg-brand-accent-50 text-brand-accent-700 rounded-lg text-xs font-medium hover:bg-brand-accent-100 transition-all"
+                    className="flex items-center gap-1 px-2 py-1 bg-brand-accent-50 dark:bg-brand-accent-900/30 text-brand-accent-700 dark:text-brand-accent-300 rounded-lg text-xs font-medium hover:bg-brand-accent-100 dark:hover:bg-brand-accent-800/50 transition-all"
                     title={`${connector.name} active - Click to disable`}
                 >
                     <span>{connector.emoji}</span>
@@ -91,8 +91,8 @@ export default function ConnectMenu({
                     className={`
             p-2 rounded-lg transition-all relative
             ${isOpen
-                            ? 'bg-brand-accent-100 text-brand-accent-600'
-                            : 'text-light-text-secondary hover:text-light-text hover:bg-gray-100'
+                            ? 'bg-brand-accent-100 dark:bg-brand-accent-800/50 text-brand-accent-600 dark:text-brand-accent-400'
+                            : 'text-light-text-secondary dark:text-dark-text-secondary hover:text-light-text dark:hover:text-dark-text hover:bg-gray-100 dark:hover:bg-dark-sidebar'
                         }
           `}
                     title="Connect apps"
@@ -102,19 +102,19 @@ export default function ConnectMenu({
 
                 {/* Dropdown Menu */}
                 {isOpen && (
-                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-xl shadow-lg border border-light-border overflow-hidden z-50">
+                    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-dark-surface rounded-xl shadow-lg border border-light-border dark:border-dark-border overflow-hidden z-50">
                         {/* Header */}
-                        <div className="px-4 py-3 border-b border-light-border bg-gray-50">
+                        <div className="px-4 py-3 border-b border-light-border dark:border-dark-border bg-gray-50 dark:bg-dark-sidebar">
                             <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-light-text">Connect Apps</span>
+                                <span className="text-sm font-medium text-light-text dark:text-dark-text">Connect Apps</span>
                                 <button
                                     onClick={() => setIsOpen(false)}
-                                    className="text-light-text-muted hover:text-light-text"
+                                    className="text-light-text-muted dark:text-dark-text-muted hover:text-light-text dark:hover:text-dark-text"
                                 >
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
-                            <p className="text-xs text-light-text-muted mt-1">
+                            <p className="text-xs text-light-text-muted dark:text-dark-text-muted mt-1">
                                 Save documents, send emails, sync with CRM
                             </p>
                         </div>
@@ -134,8 +134,8 @@ export default function ConnectMenu({
                                         className={`
                       w-full px-4 py-3 flex items-center gap-3 transition-all
                       ${isActive
-                                                ? 'bg-brand-accent-50 border-l-2 border-brand-accent-500'
-                                                : 'hover:bg-gray-50 border-l-2 border-transparent'
+                                                ? 'bg-brand-accent-50 dark:bg-brand-accent-900/30 border-l-2 border-brand-accent-500 dark:border-brand-accent-400'
+                                                : 'hover:bg-gray-50 dark:hover:bg-dark-sidebar border-l-2 border-transparent'
                                             }
                       ${isConnecting ? 'opacity-50 cursor-wait' : ''}
                     `}
@@ -144,28 +144,28 @@ export default function ConnectMenu({
                                         <span className="text-xl w-6 text-center">{connector.emoji}</span>
 
                                         {/* Name */}
-                                        <span className={`flex-1 text-left text-sm ${isActive ? 'font-medium text-brand-accent-700' : 'text-light-text'}`}>
+                                        <span className={`flex-1 text-left text-sm ${isActive ? 'font-medium text-brand-accent-700 dark:text-brand-accent-300' : 'text-light-text dark:text-dark-text'}`}>
                                             {connector.name}
                                         </span>
 
                                         {/* Status Indicator */}
                                         <div className="flex items-center gap-1">
                                             {isConnecting ? (
-                                                <Loader2 className="w-4 h-4 text-brand-accent-500 animate-spin" />
+                                                <Loader2 className="w-4 h-4 text-brand-accent-500 dark:text-brand-accent-400 animate-spin" />
                                             ) : isConnected ? (
                                                 isActive ? (
-                                                    <div className="flex items-center gap-1 text-green-600">
+                                                    <div className="flex items-center gap-1 text-green-600 dark:text-green-400">
                                                         <Check className="w-4 h-4" />
                                                         <span className="text-xs font-medium">Active</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center gap-1 text-green-500">
+                                                    <div className="flex items-center gap-1 text-green-500 dark:text-green-400">
                                                         <Check className="w-4 h-4" />
                                                         <span className="text-xs">Connected</span>
                                                     </div>
                                                 )
                                             ) : (
-                                                <div className="flex items-center gap-1 text-light-text-muted">
+                                                <div className="flex items-center gap-1 text-light-text-muted dark:text-dark-text-muted">
                                                     <Link className="w-4 h-4" />
                                                     <span className="text-xs">Connect</span>
                                                 </div>
@@ -178,8 +178,8 @@ export default function ConnectMenu({
 
                         {/* Footer with active count */}
                         {activeConnectorsList.length > 0 && (
-                            <div className="px-4 py-2 border-t border-light-border bg-gray-50">
-                                <p className="text-xs text-light-text-muted">
+                            <div className="px-4 py-2 border-t border-light-border dark:border-dark-border bg-gray-50 dark:bg-dark-sidebar">
+                                <p className="text-xs text-light-text-muted dark:text-dark-text-muted">
                                     {activeConnectorsList.length} app{activeConnectorsList.length > 1 ? 's' : ''} active for this chat
                                 </p>
                             </div>

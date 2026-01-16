@@ -1,10 +1,98 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Light theme colors (default) */
+  --color-light-bg: #FAF9F6;
+  --color-light-surface: #FFFFFF;
+  --color-light-sidebar: #F5F3EE;
+  --color-light-border: #E8E4DD;
+  --color-light-border-hover: #D4CFC5;
+  --color-light-text: #1A1A1A;
+  --color-light-text-secondary: #6B6B6B;
+  --color-light-text-muted: #8B8680;
+  --color-terminal-light: #FAFAF8;
+  --color-code-dark: #1E1E1E;
+
+  /* Brand accent - Blue/Cyan (Halo AI style) */
+  --color-brand-accent: #06b6d4;
+  --color-brand-accent-50: #ecfeff;
+  --color-brand-accent-100: #cffafe;
+  --color-brand-accent-200: #a5f3fc;
+  --color-brand-accent-300: #67e8f9;
+  --color-brand-accent-400: #22d3ee;
+  --color-brand-accent-500: #06b6d4;
+  --color-brand-accent-600: #0891b2;
+  --color-brand-accent-700: #0e7490;
+  --color-brand-accent-800: #155e75;
+  --color-brand-accent-900: #164e63;
+
+  /* Status colors */
+  --color-status-success: #27C93F;
+  --color-status-error: #FF5F56;
+  --color-status-warning: #FFBD2E;
+
+  /* Legacy aliases */
+  --color-claude-bg: #FAF9F6;
+  --color-claude-accent: #06b6d4;
+  --color-brand-bg: #FAF9F6;
+  --color-brand-surface: #FFFFFF;
+  --color-claude-text: #1A1A1A;
+  --color-claude-msg-user: #FAF9F6;
+  --color-claude-msg-bot: #FAF9F6;
+
+  /* Dark theme colors */
+  --color-dark-bg: #0f0f0f;
+  --color-dark-surface: #1a1a1a;
+  --color-dark-sidebar: #1f1f1f;
+  --color-dark-border: #2a2a2a;
+  --color-dark-border-hover: #3a3a3a;
+  --color-dark-text: #f5f5f5;
+  --color-dark-text-secondary: #a0a0a0;
+  --color-dark-text-muted: #808080;
+  --color-dark-terminal: #1a1a1a;
+  --color-code-dark: #1E1E1E;
+
+  /* Dark theme brand accent (brighter cyan/blue for contrast) */
+  --color-dark-brand-accent-50: #164e63;
+  --color-dark-brand-accent-100: #155e75;
+  --color-dark-brand-accent-200: #0e7490;
+  --color-dark-brand-accent-300: #0891b2;
+  --color-dark-brand-accent-400: #06b6d4;
+  --color-dark-brand-accent-500: #22d3ee;
+  --color-dark-brand-accent-600: #67e8f9;
+  --color-dark-brand-accent-700: #a5f3fc;
+
+  /* Font families */
+  --font-sans: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-display: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* Letter spacing */
+  --letter-spacing-tighter: -0.02em;
+  --letter-spacing-tight: -0.01em;
+  --letter-spacing-normal: 0em;
+  --letter-spacing-wide: 0.01em;
+  --letter-spacing-wider: 0.02em;
+  --letter-spacing-widest: 0.04em;
+
+  /* Line heights */
+  --line-height-tighter: 1.1;
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.3;
+  --line-height-normal: 1.4;
+  --line-height-relaxed: 1.5;
+  --line-height-loose: 1.6;
+
+  /* Box shadows */
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
 
 @layer base {
   body {
     @apply bg-light-bg text-light-text font-sans antialiased;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   /* Improve font rendering */
@@ -14,24 +102,61 @@
   }
 }
 
-/* Custom scrollbar for warm theme */
+/* Dark theme overrides */
+.dark {
+  --color-light-bg: var(--color-dark-bg);
+  --color-light-surface: var(--color-dark-surface);
+  --color-light-sidebar: var(--color-dark-sidebar);
+  --color-light-border: var(--color-dark-border);
+  --color-light-border-hover: var(--color-dark-border-hover);
+  --color-light-text: var(--color-dark-text);
+  --color-light-text-secondary: var(--color-dark-text-secondary);
+  --color-light-text-muted: var(--color-dark-text-muted);
+  --color-brand-accent-50: var(--color-dark-brand-accent-50);
+  --color-brand-accent-100: var(--color-dark-brand-accent-100);
+  --color-brand-accent-200: var(--color-dark-brand-accent-200);
+  --color-brand-accent-300: var(--color-dark-brand-accent-300);
+  --color-brand-accent-400: var(--color-dark-brand-accent-400);
+  --color-brand-accent-500: var(--color-dark-brand-accent-500);
+  --color-brand-accent-600: var(--color-dark-brand-accent-600);
+  --color-brand-accent-700: var(--color-dark-brand-accent-700);
+}
+
+.dark body {
+  @apply bg-dark-bg text-dark-text;
+}
+
+/* Custom scrollbar for light theme */
 .custom-scrollbar-dark::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-track {
-  background: #FAF9F6;
+  background: var(--color-light-bg);
   border-radius: 4px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb {
-  background: #D4CFC5;
+  background: var(--color-light-border-hover);
   border-radius: 4px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  background: #B8A07A;
+  background: var(--color-brand-accent-500);
+}
+
+/* Dark theme scrollbar */
+.dark .custom-scrollbar-dark::-webkit-scrollbar-track {
+  background: var(--color-dark-bg);
+}
+
+.dark .custom-scrollbar-dark::-webkit-scrollbar-thumb {
+  background: var(--color-dark-border);
+}
+
+.dark .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: var(--color-dark-border-hover);
 }
 
 /* Thin scrollbar variant */
@@ -45,12 +170,57 @@
 }
 
 .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #E8E4DD;
+  background: var(--color-light-border);
   border-radius: 3px;
 }
 
 .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #D4CFC5;
+  background: var(--color-light-border-hover);
+}
+
+.dark .custom-scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-dark-border);
+}
+
+.dark .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-dark-border-hover);
+}
+
+/* Minimal scrollbar for artifacts */
+.artifact-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.artifact-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.artifact-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+.artifact-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dark .artifact-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.dark .artifact-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Firefox scrollbar for artifacts */
+.artifact-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.dark .artifact-scrollbar {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
 /* Hide scrollbar for specific elements */
@@ -74,15 +244,26 @@
 }
 
 .btn-primary {
-  @apply btn-base bg-brand-accent-500 text-white hover:bg-brand-accent-600 active:bg-brand-accent-700;
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200;
+  @apply bg-brand-accent-500 text-white hover:bg-brand-accent-600 active:bg-brand-accent-700;
 }
 
 .btn-secondary {
-  @apply btn-base bg-white text-light-text border border-light-border hover:border-light-border-hover hover:bg-light-bg;
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200;
+  @apply bg-white text-light-text border border-light-border hover:border-light-border-hover hover:bg-light-bg;
+}
+
+.dark .btn-secondary {
+  @apply bg-dark-surface text-dark-text border-dark-border hover:border-dark-border-hover hover:bg-dark-sidebar;
 }
 
 .btn-ghost {
-  @apply btn-base bg-transparent text-light-text-secondary hover:bg-light-sidebar hover:text-light-text;
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200;
+  @apply bg-transparent text-light-text-secondary hover:bg-light-sidebar hover:text-light-text;
+}
+
+.dark .btn-ghost {
+  @apply text-dark-text-secondary hover:bg-dark-sidebar hover:text-dark-text;
 }
 
 /* Input base styles */
@@ -92,13 +273,28 @@
   @apply transition-all duration-200;
 }
 
+.dark .input-base {
+  @apply bg-dark-surface border-dark-border text-dark-text placeholder-dark-text-muted;
+  @apply focus:ring-brand-accent-800 focus:border-brand-accent-600;
+}
+
 /* Card styles */
 .card {
   @apply bg-white border border-light-border rounded-xl;
 }
 
+.dark .card {
+  @apply bg-dark-surface border-dark-border;
+}
+
 .card-hover {
-  @apply card hover:border-light-border-hover hover:shadow-soft transition-all duration-200;
+  @apply bg-white border border-light-border rounded-xl;
+  @apply hover:border-light-border-hover hover:shadow-soft transition-all duration-200;
+}
+
+.dark .card-hover {
+  @apply bg-dark-surface border-dark-border;
+  @apply hover:border-dark-border-hover;
 }
 
 /* Layout stability utilities */

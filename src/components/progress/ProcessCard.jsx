@@ -4,12 +4,15 @@ import { ChevronDown, Check, X, RefreshCw, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import ProgressDisplay from './ProgressDisplay';
 import { getFileIcon } from '../../utils/fileUtils';
+import { useTheme } from '../../context/ThemeContext';
 
 /**
  * Claude-style Process Card - Clean, minimal design
  * Shows AI processing steps in a collapsible container
  */
 const ProcessCard = ({ title, query, steps, finalResult, artifacts, status, isCollapsed, onToggle, onRetry }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   // Count steps for header
   const stepCount = steps?.length || 0;
 
@@ -30,26 +33,26 @@ const ProcessCard = ({ title, query, steps, finalResult, artifacts, status, isCo
   return (
     <div className="mb-4 w-full">
       {/* Collapsible Card */}
-      <div className="border border-light-border rounded-xl bg-light-surface/50 overflow-hidden">
+      <div className={`border rounded-xl overflow-hidden ${isDark ? 'border-dark-border bg-dark-surface/50' : 'border-light-border bg-light-surface/50'}`}>
         {/* Header - Click to collapse */}
         <div
           onClick={onToggle}
-          className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-light-surface transition-colors"
+          className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${isDark ? 'hover:bg-dark-surface' : 'hover:bg-light-surface'}`}
         >
           <div className="flex items-center gap-3">
             {/* Status Icon */}
             {status === 'processing' ? (
-              <Loader2 className="w-4 h-4 text-brand-accent-500 animate-spin" />
+              <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} />
             ) : status === 'completed' ? (
-              <Check className="w-4 h-4 text-green-500" />
+              <Check className={`w-4 h-4 ${isDark ? 'text-green-400' : 'text-green-500'}`} />
             ) : status === 'error' ? (
-              <X className="w-4 h-4 text-red-500" />
+              <X className={`w-4 h-4 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
             ) : (
-              <div className="w-4 h-4 rounded-full border-2 border-light-border" />
+              <div className={`w-4 h-4 rounded-full border-2 ${isDark ? 'border-dark-border' : 'border-light-border'}`} />
             )}
 
             {/* Header Text */}
-            <span className="text-sm font-medium text-light-text">
+            <span className={`text-sm font-medium ${isDark ? 'text-dark-text' : 'text-light-text'}`}>
               {getHeaderText()}
             </span>
           </div>
@@ -59,7 +62,7 @@ const ProcessCard = ({ title, query, steps, finalResult, artifacts, status, isCo
             {status === 'error' && onRetry && (
               <button
                 onClick={(e) => { e.stopPropagation(); onRetry(query); }}
-                className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-light-text hover:bg-white border border-light-border rounded-lg transition-all"
+                className={`flex items-center gap-1 px-2 py-1 text-xs font-medium border rounded-lg transition-all ${isDark ? 'text-dark-text hover:bg-dark-sidebar border-dark-border' : 'text-light-text hover:bg-white border-light-border'}`}
               >
                 <RefreshCw className="w-3 h-3" />
                 Retry
@@ -68,8 +71,7 @@ const ProcessCard = ({ title, query, steps, finalResult, artifacts, status, isCo
 
             {/* Collapse Arrow */}
             <ChevronDown
-              className={`w-4 h-4 text-light-text-muted transition-transform duration-200 ${!isCollapsed ? 'rotate-180' : ''
-                }`}
+              className={`w-4 h-4 transition-transform duration-200 ${isDark ? 'text-dark-text-muted' : 'text-light-text-muted'} ${!isCollapsed ? 'rotate-180' : ''}`}
             />
           </div>
         </div>
@@ -82,7 +84,7 @@ const ProcessCard = ({ title, query, steps, finalResult, artifacts, status, isCo
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2, ease: "easeInOut" }}
-              className="border-t border-light-border"
+              className={`border-t ${isDark ? 'border-dark-border' : 'border-light-border'}`}
             >
               <div className="p-2">
                 <ProgressDisplay items={steps} />
@@ -94,18 +96,18 @@ const ProcessCard = ({ title, query, steps, finalResult, artifacts, status, isCo
 
       {/* Final Result - Shown below card when completed */}
       {status === 'completed' && finalResult && (
-        <div className="mt-3 text-sm text-light-text leading-relaxed">
+        <div className={`mt-3 text-sm leading-relaxed ${isDark ? 'text-dark-text' : 'text-light-text'}`}>
           <ReactMarkdown
             components={{
               p: ({ node, ...props }) => <p className="mb-2" {...props} />,
               strong: ({ node, ...props }) => <strong className="font-semibold" {...props} />,
               code: ({ node, inline, ...props }) =>
                 inline ? (
-                  <code className="bg-light-surface px-1.5 py-0.5 rounded text-xs font-mono border border-light-border" {...props} />
+                  <code className={`px-1.5 py-0.5 rounded text-xs font-mono border ${isDark ? 'bg-dark-surface border-dark-border' : 'bg-light-surface border-light-border'}`} {...props} />
                 ) : (
-                  <code className="block bg-light-surface p-2 rounded text-xs font-mono border border-light-border overflow-x-auto mb-2" {...props} />
+                  <code className={`block p-2 rounded text-xs font-mono border overflow-x-auto mb-2 ${isDark ? 'bg-dark-surface border-dark-border' : 'bg-light-surface border-light-border'}`} {...props} />
                 ),
-              a: ({ node, ...props }) => <a className="text-brand-accent-500 hover:underline" {...props} />,
+              a: ({ node, ...props }) => <a className={`hover:underline ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} {...props} />,
             }}
           >
             {finalResult}

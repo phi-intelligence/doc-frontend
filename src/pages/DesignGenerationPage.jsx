@@ -9,6 +9,7 @@ import { getFileUrl } from '../api/files';
 import { sendMessage } from '../api/chat';
 import { useProgressStream } from '../hooks/useProgressStream';
 import ProcessCard from '../components/progress/ProcessCard';
+import { useTheme } from '../context/ThemeContext';
 
 // Logo styles
 const logoStyles = [
@@ -44,7 +45,7 @@ const designModes = [
   { id: 'text-image', name: 'Text Image', icon: Type, description: 'Generate styled text graphics' }
 ];
 
-function DesignGenerationPage() {
+const DesignGenerationPage = () => {
   const [selectedMode, setSelectedMode] = useState('logo');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
@@ -214,8 +215,11 @@ Create a clean, professional text graphic.`;
     }
   };
 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   return (
-    <div className="min-h-screen bg-light-bg">
+    <div className={`min-h-screen ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-light-bg/80 backdrop-blur-md border-b border-light-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -572,6 +576,6 @@ Create a clean, professional text graphic.`;
       </div>
     </div>
   );
-}
+};
 
 export default DesignGenerationPage;

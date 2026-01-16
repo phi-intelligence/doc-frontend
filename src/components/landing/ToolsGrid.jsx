@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import ToolCard from './ToolCard';
+import { useTheme } from '../../context/ThemeContext';
 import {
   FileText, Table, FileImage, Presentation, Image, Code, ScanLine,
   Camera, Palette, Sparkles, User, Link2, MessagesSquare, BarChart3
@@ -254,6 +255,9 @@ const toolCategories = [
 
 
 const CategorySection = ({ category, layout }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   // Special layout for Unified Assistant (featured)
   if (category.featured) {
     return (
@@ -295,10 +299,10 @@ const CategorySection = ({ category, layout }) => {
           </div>
         )}
         <div>
-          <h2 className="text-2xl font-bold text-light-text">
+          <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-light-text'}`}>
             {category.title}
           </h2>
-          <p className="text-sm text-light-text-secondary">
+          <p className={`text-sm ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
             {category.description}
           </p>
         </div>

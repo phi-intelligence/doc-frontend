@@ -53,7 +53,7 @@ const backgroundStyles = [
   { value: 'gradient', label: 'Gradient' }
 ];
 
-function VirtualModelPage() {
+const VirtualModelPage = () => {
   const [selectedMode, setSelectedMode] = useState(modes[0]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
@@ -300,8 +300,11 @@ Create a natural, professional-looking result suitable for e-commerce or fashion
 
   const ModeIcon = selectedMode.icon;
 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   return (
-    <div className="min-h-screen bg-light-bg">
+    <div className={`min-h-screen ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-light-bg/80 backdrop-blur-md border-b border-light-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -653,6 +656,6 @@ Create a natural, professional-looking result suitable for e-commerce or fashion
       </div>
     </div>
   );
-}
+};
 
 export default VirtualModelPage;

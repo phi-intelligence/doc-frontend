@@ -106,22 +106,22 @@ const DocumentPreview = ({
 
   // Page navigation controls
   const PageNavigation = ({ ext }) => (
-    <div className="flex items-center justify-between gap-2 px-4 py-2 bg-light-bg border-t border-light-border">
+    <div className="flex items-center justify-between gap-2 px-4 py-2 bg-light-bg dark:bg-dark-bg border-t border-light-border dark:border-dark-border">
       <button
         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
         disabled={currentPage <= 1}
-        className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-light-text bg-white border border-light-border hover:bg-gray-50 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-light-text dark:text-dark-text bg-white dark:bg-dark-surface border border-light-border dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-sidebar rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <ChevronLeft className="w-4 h-4" />
         Previous
       </button>
-      <span className="text-sm font-medium text-light-text">
+      <span className="text-sm font-medium text-light-text dark:text-dark-text">
         Page {currentPage}{totalPages ? ` of ${totalPages}` : ''} {['pptx', 'ppt'].includes(ext) ? '(Slide)' : ''}
       </span>
       <button
         onClick={() => setCurrentPage(p => p + 1)}
         disabled={totalPages !== null && currentPage >= totalPages}
-        className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-light-text bg-white border border-light-border hover:bg-gray-50 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center gap-1 px-3 py-1 text-sm font-medium text-light-text dark:text-dark-text bg-white dark:bg-dark-surface border border-light-border dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-sidebar rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Next
         <ChevronRight className="w-4 h-4" />
@@ -132,7 +132,7 @@ const DocumentPreview = ({
   // If no artifact but loading state is active, show loading video during transition
   if (!artifact && documentPreviewLoading) {
     return (
-      <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
+      <div className="w-full h-full flex flex-col bg-white dark:bg-dark-surface rounded-lg overflow-hidden border border-light-border dark:border-dark-border shadow-sm relative">
         <LoadingVideo />
       </div>
     );
@@ -141,7 +141,7 @@ const DocumentPreview = ({
   // No artifact selected
   if (!artifact) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-light-text-secondary bg-light-bg">
+      <div className="flex flex-col items-center justify-center h-full text-light-text-secondary dark:text-dark-text-secondary bg-light-bg dark:bg-dark-bg">
         <FileUp className="w-16 h-16 mb-4 opacity-50" />
         <p className="text-lg">Select a file to preview</p>
         <p className="text-sm mt-2">Upload a document or select from artifacts</p>
@@ -157,7 +157,7 @@ const DocumentPreview = ({
   // For pending artifacts, always show loading video
   if (isPending) {
     return (
-      <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
+      <div className="w-full h-full flex flex-col bg-white dark:bg-dark-surface rounded-lg overflow-hidden border border-light-border dark:border-dark-border shadow-sm relative">
         <LoadingVideo
           message="Generating document..."
           subtitle="Code generation in progress..."
@@ -169,8 +169,8 @@ const DocumentPreview = ({
   // Loading state for text-based artifacts
   if (previewLoading) {
     return (
-      <div className="flex items-center justify-center h-full bg-light-bg">
-        <RefreshCw className="w-8 h-8 animate-spin text-brand-accent-500" />
+      <div className="flex items-center justify-center h-full bg-light-bg dark:bg-dark-bg">
+        <RefreshCw className="w-8 h-8 animate-spin text-brand-accent-500 dark:text-brand-accent-400" />
       </div>
     );
   }
@@ -188,7 +188,7 @@ const DocumentPreview = ({
   // HTML - render in iframe
   if (ext === 'html') {
     return (
-      <div className="w-full h-full bg-white rounded-lg overflow-hidden border border-light-border shadow-sm">
+      <div className="w-full h-full bg-white dark:bg-dark-surface rounded-lg overflow-hidden border border-light-border dark:border-dark-border shadow-sm">
         <iframe
           srcDoc={artifactContent}
           className="w-full h-full border-0"
@@ -202,8 +202,8 @@ const DocumentPreview = ({
   // TXT / MD / JSON - show as raw text
   if (['txt', 'md', 'json'].includes(ext)) {
     return (
-      <div className="w-full h-full bg-terminal-light p-4 border border-light-border rounded-lg overflow-auto font-mono text-sm">
-        <pre className="text-light-text">{artifactContent}</pre>
+      <div className="w-full h-full bg-terminal-light dark:bg-dark-terminal p-4 border border-light-border dark:border-dark-border rounded-lg overflow-auto font-mono text-sm">
+        <pre className="text-light-text dark:text-dark-text">{artifactContent}</pre>
       </div>
     );
   }
@@ -211,11 +211,11 @@ const DocumentPreview = ({
   // PDF
   if (ext === 'pdf') {
     return (
-      <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
+      <div className="w-full h-full flex flex-col bg-white dark:bg-dark-surface rounded-lg overflow-hidden border border-light-border dark:border-dark-border shadow-sm relative">
         {documentPreviewLoading && <LoadingVideo />}
         <iframe
           src={`${artifact.url}#toolbar=0&navpanes=0&page=${currentPage}`}
-          className={`w-full flex-1 border-0 bg-white ${documentPreviewLoading ? 'invisible' : 'visible'}`}
+          className={`w-full flex-1 border-0 bg-white dark:bg-dark-surface ${documentPreviewLoading ? 'invisible' : 'visible'}`}
           title="PDF Preview"
           onLoad={() => {
             setTimeout(() => {
@@ -235,7 +235,7 @@ const DocumentPreview = ({
   // Images
   if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
     return (
-      <div className="flex items-center justify-center h-full bg-gray-100 rounded-lg p-4">
+      <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-dark-bg rounded-lg p-4">
         <img
           src={artifact.url}
           alt="Preview"
@@ -258,7 +258,7 @@ const DocumentPreview = ({
   // Other Office files (DOCX, PPTX) - use iframe (converted to PDF)
   if (['docx', 'doc', 'pptx', 'ppt'].includes(ext)) {
     return (
-      <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
+      <div className="w-full h-full flex flex-col bg-white dark:bg-dark-surface rounded-lg overflow-hidden border border-light-border dark:border-dark-border shadow-sm relative">
         {documentPreviewLoading && (
           <LoadingVideo
             message="Loading preview..."
@@ -268,7 +268,7 @@ const DocumentPreview = ({
         <iframe
           key={`${artifact.filename}-${artifact.createdAt || Date.now()}`}
           src={`${previewUrl}#toolbar=0&navpanes=0&page=${currentPage}`}
-          className={`w-full flex-1 border-0 bg-white ${documentPreviewLoading ? 'invisible' : 'visible'}`}
+          className={`w-full flex-1 border-0 bg-white dark:bg-dark-surface ${documentPreviewLoading ? 'invisible' : 'visible'}`}
           title="Document Preview"
           onLoad={(e) => {
             // Check if iframe loaded successfully by trying to access content
@@ -304,18 +304,18 @@ const DocumentPreview = ({
   // Fallback
   const IconComponent = getFileIcon(ext);
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-white border rounded-lg shadow-sm">
-      <div className="p-6 bg-brand-accent-500/10 rounded-full mb-6">
-        <IconComponent className="w-16 h-16 text-brand-accent-500" />
+    <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-white dark:bg-dark-surface border border-light-border dark:border-dark-border rounded-lg shadow-sm">
+      <div className="p-6 bg-brand-accent-500/10 dark:bg-brand-accent-900/30 rounded-full mb-6">
+        <IconComponent className="w-16 h-16 text-brand-accent-500 dark:text-brand-accent-400" />
       </div>
-      <h3 className="text-xl font-semibold text-gray-800 mb-2">{artifact.filename}</h3>
-      <p className="text-sm text-gray-500 mb-6">
+      <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-2">{artifact.filename}</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
         Preview not available for .{ext} files
       </p>
       <a
         href={artifact.url}
         download={artifact.filename}
-        className="flex items-center gap-2 px-6 py-3 bg-brand-accent-500 text-white font-semibold rounded-lg hover:bg-brand-accent-600 transition-all duration-200 shadow-md hover:shadow-lg transform active:scale-95"
+        className="flex items-center gap-2 px-6 py-3 bg-brand-accent-500 dark:bg-brand-accent-600 text-white font-semibold rounded-lg hover:bg-brand-accent-600 dark:hover:bg-brand-accent-700 transition-all duration-200 shadow-md hover:shadow-lg transform active:scale-95"
       >
         <Download className="w-5 h-5" />
         Download File

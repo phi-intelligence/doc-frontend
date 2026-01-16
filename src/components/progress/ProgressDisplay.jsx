@@ -12,11 +12,14 @@ import {
     Sparkles
 } from 'lucide-react';
 import TerminalBlock from './TerminalBlock';
+import { useTheme } from '../../context/ThemeContext';
 
 /**
  * Claude-style Step Item - Minimal, flat design
  */
 const StepItem = ({ item, isLast }) => {
+    const { theme } = useTheme();
+    const isDark = theme === 'dark';
     const [isExpanded, setIsExpanded] = useState(
         item.type === 'code_start' || item.type === 'thought' || item.status === 'running'
     );
@@ -30,22 +33,22 @@ const StepItem = ({ item, isLast }) => {
 
     const getIcon = () => {
         if (item.status === 'error') {
-            return <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
+            return <AlertCircle className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-red-400' : 'text-red-500'}`} />;
         }
         if (item.status === 'complete') {
-            return <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />;
+            return <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-green-400' : 'text-green-500'}`} />;
         }
         if (item.status === 'running') {
-            return <Loader2 className="w-4 h-4 text-brand-accent-500 animate-spin flex-shrink-0" />;
+            return <Loader2 className={`w-4 h-4 animate-spin flex-shrink-0 ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} />;
         }
         // Pending/queued
-        return <Circle className="w-4 h-4 text-gray-300 flex-shrink-0" />;
+        return <Circle className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-dark-text-muted' : 'text-light-text-muted'}`} />;
     };
 
     const getTypeIcon = () => {
-        if (item.type === 'thought') return <Cpu className="w-3.5 h-3.5 text-purple-500" />;
-        if (item.type === 'code_start') return <Terminal className="w-3.5 h-3.5 text-gray-500" />;
-        if (item.type === 'file_created') return <FileText className="w-3.5 h-3.5 text-blue-500" />;
+        if (item.type === 'thought') return <Cpu className={`w-3.5 h-3.5 ${isDark ? 'text-purple-400' : 'text-purple-500'}`} />;
+        if (item.type === 'code_start') return <Terminal className={`w-3.5 h-3.5 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`} />;
+        if (item.type === 'file_created') return <FileText className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-500'}`} />;
         return null;
     };
 
@@ -62,8 +65,8 @@ const StepItem = ({ item, isLast }) => {
         <div className="group">
             {/* Main Step Row - Claude-style flat list */}
             <div
-                className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-colors ${hasExpandableContent ? 'cursor-pointer hover:bg-light-surface' : ''
-                    } ${item.status === 'running' ? 'bg-brand-accent-50/50' : ''}`}
+                className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-colors ${hasExpandableContent ? 'cursor-pointer hover:bg-light-surface dark:hover:bg-dark-surface' : ''
+                    } ${item.status === 'running' ? 'bg-brand-accent-50/50 dark:bg-brand-accent-900/20' : ''}`}
                 onClick={toggleExpand}
             >
                 {/* Status Icon */}
@@ -77,28 +80,28 @@ const StepItem = ({ item, isLast }) => {
                 )}
 
                 {/* Step Text */}
-                <span className={`flex-1 text-sm truncate ${item.status === 'running' ? 'text-light-text font-medium' : 'text-light-text-secondary'
+                <span className={`flex-1 text-sm truncate ${item.status === 'running' ? 'text-light-text dark:text-dark-text font-medium' : 'text-light-text-secondary dark:text-dark-text-secondary'
                     }`}>
                     {item.title || item.message || "Processing..."}
                 </span>
 
                 {/* Filename (right side, like Claude) */}
                 {item.filename && (
-                    <span className="text-xs text-light-text-muted font-mono truncate max-w-[150px]">
+                    <span className="text-xs text-light-text-muted dark:text-dark-text-muted font-mono truncate max-w-[150px]">
                         {item.filename}
                     </span>
                 )}
 
                 {/* Duration badge */}
                 {item.duration && item.duration > 0.5 && item.status === 'complete' && (
-                    <span className="text-xs text-light-text-muted">
+                    <span className="text-xs text-light-text-muted dark:text-dark-text-muted">
                         {item.duration.toFixed(1)}s
                     </span>
                 )}
 
                 {/* Expand indicator */}
                 {hasExpandableContent && (
-                    <div className="text-light-text-muted">
+                    <div className="text-light-text-muted dark:text-dark-text-muted">
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </div>
                 )}
@@ -111,8 +114,8 @@ const StepItem = ({ item, isLast }) => {
                     {item.children && item.children.length > 0 && (
                         <ul className="space-y-1 mb-3">
                             {item.children.map((child, idx) => (
-                                <li key={idx} className="flex items-center gap-2 text-xs text-light-text-secondary py-1">
-                                    <span className="w-1 h-1 rounded-full bg-light-text-muted" />
+                                <li key={idx} className="flex items-center gap-2 text-xs text-light-text-secondary dark:text-dark-text-secondary py-1">
+                                    <span className="w-1 h-1 rounded-full bg-light-text-muted dark:bg-dark-text-muted" />
                                     {child.title}
                                 </li>
                             ))}
@@ -121,8 +124,8 @@ const StepItem = ({ item, isLast }) => {
 
                     {/* Thought/Reasoning Block */}
                     {item.type === 'thought' && (item.output || item.content) && (
-                        <div className="p-3 bg-purple-50 rounded-lg text-sm text-purple-900 border border-purple-100">
-                            <div className="text-[10px] uppercase tracking-wider text-purple-500 font-semibold mb-1">
+                        <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-sm text-purple-900 dark:text-purple-200 border border-purple-100 dark:border-purple-800">
+                            <div className="text-[10px] uppercase tracking-wider text-purple-500 dark:text-purple-400 font-semibold mb-1">
                                 Reasoning
                             </div>
                             <div className="whitespace-pre-wrap text-xs leading-relaxed">
@@ -143,20 +146,20 @@ const StepItem = ({ item, isLast }) => {
 
                     {/* File Created Card */}
                     {item.type === 'file_created' && (
-                        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                            <div className="p-2 bg-blue-100 rounded-md">
-                                <FileText className="w-4 h-4 text-blue-600" />
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-100 dark:border-blue-800 rounded-lg">
+                            <div className="p-2 bg-blue-100 dark:bg-blue-800/50 rounded-md">
+                                <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-blue-900 truncate">{item.filename}</p>
-                                <p className="text-xs text-blue-600">{item.file_type || 'Document'}</p>
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-200 truncate">{item.filename}</p>
+                                <p className="text-xs text-blue-600 dark:text-blue-400">{item.file_type || 'Document'}</p>
                             </div>
                         </div>
                     )}
 
                     {/* Error Message */}
                     {item.error && (
-                        <div className="p-3 bg-red-50 text-red-800 text-xs rounded-lg border border-red-100">
+                        <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-800 dark:text-red-200 text-xs rounded-lg border border-red-100 dark:border-red-800">
                             <p className="font-semibold mb-1">Error:</p>
                             <p className="font-mono whitespace-pre-wrap">{item.error}</p>
                         </div>

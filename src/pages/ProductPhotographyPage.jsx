@@ -9,6 +9,7 @@ import { uploadFile, getFileUrl } from '../api/files';
 import { sendMessage } from '../api/chat';
 import { useProgressStream } from '../hooks/useProgressStream';
 import ProcessCard from '../components/progress/ProcessCard';
+import { useTheme } from '../context/ThemeContext';
 
 // Feature definitions
 const features = [
@@ -52,7 +53,7 @@ const sizePresets = {
   'custom': { width: null, height: null, label: 'Custom Size' }
 };
 
-function ProductPhotographyPage() {
+const ProductPhotographyPage = () => {
   const [selectedFeature, setSelectedFeature] = useState(features[0]);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [uploadedFile, setUploadedFile] = useState(null);
@@ -76,13 +77,27 @@ function ProductPhotographyPage() {
   const progressStream = useProgressStream(sessionId);
   
   const fileInputRef = useRef(null);
+  const processCardRef = useRef(processCard);
+
+  // Keep ref in sync with processCard
+  useEffect(() => {
+    processCardRef.current = processCard;
+  }, [processCard]);
 
   // Update process card with progress stream
   useEffect(() => {
-    if (progressStream.items.length > 0 && processCard && processCard.status === 'processing') {
-      setProcessCard(prev => prev ? { ...prev, steps: progressStream.items } : null);
+    const currentCard = processCardRef.current;
+    if (progressStream.items.length > 0 && currentCard && currentCard.status === 'processing') {
+      // Only update if steps actually changed (compare lengths to avoid infinite loop)
+      const currentStepsLength = currentCard.steps?.length || 0;
+      if (progressStream.items.length !== currentStepsLength) {
+        setProcessCard(prev => {
+          if (!prev || prev.status !== 'processing') return prev;
+          return { ...prev, steps: [...progressStream.items] };
+        });
+      }
     }
-  }, [progressStream.items, processCard]);
+  }, [progressStream.items.length]);
 
   // Handle file selection
   const handleFileSelect = async (file) => {
@@ -280,8 +295,11 @@ Maintain the product's accurate representation while improving visual appeal.`;
 
   const FeatureIcon = selectedFeature.icon;
 
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   return (
-    <div className="min-h-screen bg-light-bg">
+    <div className={`min-h-screen ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
       {/* Header */}
       <header className="sticky top-0 z-50 bg-light-bg/80 backdrop-blur-md border-b border-light-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -619,6 +637,6 @@ Maintain the product's accurate representation while improving visual appeal.`;
       </div>
     </div>
   );
-}
+};
 
 export default ProductPhotographyPage;

@@ -41,15 +41,15 @@ const ExcelPreview = ({ url, onLoadComplete }) => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full bg-light-bg">
+      <div className="flex flex-col items-center justify-center h-full bg-light-bg dark:bg-dark-bg">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
-            <RefreshCw className="w-12 h-12 animate-spin text-brand-accent-500" />
-            <div className="absolute inset-0 border-4 border-brand-accent-100 rounded-full"></div>
+            <RefreshCw className="w-12 h-12 animate-spin text-brand-accent-500 dark:text-brand-accent-400" />
+            <div className="absolute inset-0 border-4 border-brand-accent-100 dark:border-brand-accent-800 rounded-full"></div>
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-light-text">Loading Excel file...</p>
-            <p className="text-xs text-light-text-secondary mt-1">Parsing spreadsheet data</p>
+            <p className="text-sm font-medium text-light-text dark:text-dark-text">Loading Excel file...</p>
+            <p className="text-xs text-light-text-secondary dark:text-dark-text-secondary mt-1">Parsing spreadsheet data</p>
           </div>
         </div>
       </div>
@@ -57,16 +57,16 @@ const ExcelPreview = ({ url, onLoadComplete }) => {
   }
 
   if (!data || data.length === 0) {
-    return <div className="p-4 text-center text-light-text-secondary bg-light-bg">No data found</div>;
+    return <div className="p-4 text-center text-light-text-secondary dark:text-dark-text-secondary bg-light-bg dark:bg-dark-bg">No data found</div>;
   }
 
   return (
-    <div className="h-full overflow-auto bg-white p-4 rounded-lg border border-light-border">
+    <div className="h-full overflow-auto bg-white dark:bg-dark-surface p-4 rounded-lg border border-light-border dark:border-dark-border">
       <table className="min-w-full border-collapse">
-        <thead className="bg-brand-accent-500 sticky top-0">
+        <thead className="bg-brand-accent-500 dark:bg-brand-accent-600 sticky top-0">
           <tr>
             {data[0].map((header, i) => (
-              <th key={i} className="border border-light-border px-4 py-2.5 text-left font-semibold text-white">
+              <th key={i} className="border border-light-border dark:border-dark-border px-4 py-2.5 text-left font-semibold text-white">
                 {header || `Column ${i + 1}`}
               </th>
             ))}
@@ -74,9 +74,9 @@ const ExcelPreview = ({ url, onLoadComplete }) => {
         </thead>
         <tbody>
           {data.slice(1).map((row, rowIndex) => (
-            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white dark:bg-dark-surface' : 'bg-gray-50 dark:bg-dark-sidebar'}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="border border-light-border px-4 py-2 text-light-text">
+                <td key={cellIndex} className="border border-light-border dark:border-dark-border px-4 py-2 text-light-text dark:text-dark-text">
                   {cell !== undefined && cell !== null ? String(cell) : ''}
                 </td>
               ))}

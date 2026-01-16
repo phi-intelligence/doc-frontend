@@ -13,71 +13,117 @@ import { saveSessionData, loadSessionData, deleteSessionData, getStorageItem, se
 import { getFileIcon } from '../utils/fileUtils';
 
 // Import API services
-import { sendMessage as sendChatMessage } from '../api/chat';
-import { uploadFile, getFileUrl, getPreviewUrl, clearArtifacts, clearUploads, enhanceWithImages } from '../api/files';
-import { getRAGStatus, indexDocument } from '../api/rag';
+import { getFileUrl, getPreviewUrl } from '../api/files';
 
 // Import hooks
 import { useProgressStream } from '../hooks/useProgressStream';
-import { useSession } from '../hooks/useSession';
-import { useFiles } from '../hooks/useFiles';
-import { useArtifacts } from '../hooks/useArtifacts';
-import { useConnect } from '../hooks/useConnect';
+import { useArtifactContent } from '../hooks/useArtifactContent';
+
+// Import stores
+import useUIStore from '../stores/useUIStore';
+import useSessionStore from '../stores/useSessionStore';
+
+// Import queries
+import { useCreateSession, useChatHistory, useDeleteSession } from '../hooks/queries/useSessionQueries';
+import { useUploadFiles, useArtifacts, useClearArtifacts, useClearUploads, useEnhanceWithImages } from '../hooks/queries/useFileQueries';
+import { useSendMessage } from '../hooks/queries/useChatQueries';
+import { useRAGStatus, useIndexDocument } from '../hooks/queries/useRAGQueries';
+import { useConnectStatus, useConnectorApps, useConnectionStatus, useConnectApp } from '../hooks/queries/useConnectQueries';
 
 // Import components
-import ChatHistorySidebar from '../components/layout/ChatHistorySidebar';
-import Header from '../components/layout/Header';
-import WelcomeScreen from '../features/chat/components/WelcomeScreen';
+import WelcomeScreen from '../components/chat/WelcomeScreen';
 import ProcessCard from '../components/progress/ProcessCard';
-import EnhancementCard from '../features/artifacts/components/EnhancementCard';
+import EnhancementCard from '../components/artifacts/EnhancementCard';
 import FileChip from '../components/common/FileChip';
 import DocumentPreview from '../components/preview/DocumentPreview';
 import ConnectMenu from '../components/connect/ConnectMenu';
+import ChatHistorySidebar from '../components/chat/ChatHistorySidebar';
+import Header from '../components/chat/Header';
+import { useTheme } from '../context/ThemeContext';
 
 /**
  * ChatPage - Main chatbot interface for document and skill operations
  * Supports skill-specific mode via ?skill= query parameter
  */
-function ChatPage() {
+const ChatPage = () => {
   // Get skill from URL params
   const [searchParams] = useSearchParams();
   const skillParam = searchParams.get('skill');
+  
+  // Theme
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
-  // Session management
+  // Zustand stores
   const {
-    sessionId,
-    chatHistory,
-    createNewSession,
-    selectSession: selectSessionHandler,
-    deleteSession: deleteSessionHandler,
-    updateChatHistory
-  } = useSession();
-
-  // File management
-  const { uploadedFiles, isUploading, uploadFiles: uploadFilesHandler, removeFile, clearFiles, setUploadedFiles } = useFiles(sessionId);
-
-  // Artifact management
-  const {
-    outputArtifacts,
+    sidebarCollapsed,
+    rightSidebarCollapsed,
+    setSidebarCollapsed,
+    setRightSidebarCollapsed,
     activeArtifact,
+    setActiveArtifact,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    setTotalPages,
+    documentPreviewLoading,
+    setDocumentPreviewLoading,
+    videoLoadError,
+    setVideoLoadError,
     artifactContent,
     previewLoading,
-    documentPreviewLoading,
-    videoLoadError,
-    currentPage,
-    totalPages,
-    videoRef,
-    selectArtifact,
-    addArtifacts,
-    removeArtifact,
-    clearArtifacts: clearArtifactsHandler,
-    setCurrentPage,
-    setTotalPages,
-    setDocumentPreviewLoading,
-    setVideoLoadError,
-    setOutputArtifacts,
-    setActiveArtifact
-  } = useArtifacts();
+    setArtifactContent,
+    setPreviewLoading,
+    webModeEnabled,
+    toggleWebMode,
+  } = useUIStore();
+
+  const { currentSessionId, setCurrentSessionId, chatHistory, setChatHistory, updateChatHistory } = useSessionStore();
+
+  // Session queries
+  const createSessionMutation = useCreateSession();
+  const { data: chatHistoryData = [] } = useChatHistory();
+  const deleteSessionMutation = useDeleteSession();
+
+  // Initialize sessionId on mount
+  useEffect(() => {
+    if (!currentSessionId) {
+      const stored = getStorageItem(STORAGE_KEYS.SESSION_ID);
+      if (stored) {
+        setCurrentSessionId(stored);
+      } else {
+        // Create new session if none exists
+        createSessionMutation.mutate();
+      }
+    }
+  }, []);
+
+  // Get sessionId - use currentSessionId from store
+  const sessionId = currentSessionId || getStorageItem(STORAGE_KEYS.SESSION_ID);
+
+  // File queries
+  const uploadFilesMutation = useUploadFiles();
+  const { data: artifactsData = [] } = useArtifacts();
+  const clearArtifactsMutation = useClearArtifacts();
+  const clearUploadsMutation = useClearUploads();
+  const enhanceWithImagesMutation = useEnhanceWithImages();
+
+  // Chat queries
+  const sendMessageMutation = useSendMessage();
+
+  // RAG queries
+  const { data: ragStatus } = useRAGStatus(sessionId);
+  const indexDocumentMutation = useIndexDocument();
+  const ragAvailable = ragStatus?.available || false;
+  const ragIndexedDocuments = ragStatus?.has_indexed_documents || false;
+
+  // Connect queries
+  const { data: connectAvailable = false } = useConnectStatus();
+  const { data: connectors = [] } = useConnectorApps();
+  
+  // Local state for uploaded files (not server state, just UI tracking)
+  const [uploadedFiles, setUploadedFiles] = useState([]);
+  const isUploading = uploadFilesMutation.isPending;
 
   // Process cards state - initialize from session-specific storage
   const [processCards, setProcessCards] = useState(() => {
@@ -100,20 +146,80 @@ function ChatPage() {
   const [pendingArtifact, setPendingArtifact] = useState(null);
 
   // Web scraping state
-  const [webModeEnabled, setWebModeEnabled] = useState(false);
   const [webUrls, setWebUrls] = useState([]);
 
-  // UI state
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    return getStorageItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
-  });
-  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(() => {
-    return getStorageItem(STORAGE_KEYS.RIGHT_SIDEBAR_COLLAPSED, true);
-  });
+  // Artifact content loading
+  useArtifactContent(activeArtifact);
 
-  // RAG state
-  const [ragAvailable, setRagAvailable] = useState(false);
-  const [ragIndexedDocuments, setRagIndexedDocuments] = useState(false);
+  // Output artifacts from query
+  const outputArtifacts = artifactsData;
+
+  // Connect state - track active connectors locally
+  const [activeConnectors, setActiveConnectors] = useState({});
+  const [connectionStatus, setConnectionStatus] = useState({});
+  const connectAppMutation = useConnectApp();
+
+  // Get connection status for connectors (using individual queries)
+  const gmailStatus = useConnectionStatus('gmail', sessionId);
+  const driveStatus = useConnectionStatus('googledrive', sessionId);
+  const docsStatus = useConnectionStatus('googledocs', sessionId);
+  const hubspotStatus = useConnectionStatus('hubspot', sessionId);
+  const airtableStatus = useConnectionStatus('airtable', sessionId);
+
+  useEffect(() => {
+    if (gmailStatus.data !== undefined) {
+      setConnectionStatus((prev) => ({ ...prev, gmail: gmailStatus.data }));
+    }
+  }, [gmailStatus.data]);
+
+  useEffect(() => {
+    if (driveStatus.data !== undefined) {
+      setConnectionStatus((prev) => ({ ...prev, googledrive: driveStatus.data }));
+    }
+  }, [driveStatus.data]);
+
+  useEffect(() => {
+    if (docsStatus.data !== undefined) {
+      setConnectionStatus((prev) => ({ ...prev, googledocs: docsStatus.data }));
+    }
+  }, [docsStatus.data]);
+
+  useEffect(() => {
+    if (hubspotStatus.data !== undefined) {
+      setConnectionStatus((prev) => ({ ...prev, hubspot: hubspotStatus.data }));
+    }
+  }, [hubspotStatus.data]);
+
+  useEffect(() => {
+    if (airtableStatus.data !== undefined) {
+      setConnectionStatus((prev) => ({ ...prev, airtable: airtableStatus.data }));
+    }
+  }, [airtableStatus.data]);
+
+  const toggleConnector = (appId) => {
+    if (!connectionStatus[appId]) return;
+    setActiveConnectors((prev) => ({ ...prev, [appId]: !prev[appId] }));
+  };
+
+  const getIntegrations = () => {
+    const result = {};
+    for (const [appId, isActive] of Object.entries(activeConnectors)) {
+      if (isActive && connectionStatus[appId]) {
+        result[appId] = true;
+      }
+    }
+    return result;
+  };
+
+  const handleConnectApp = async (appId) => {
+    const result = await connectAppMutation.mutateAsync({ appId, sessionId });
+    if (result?.connected) {
+      setConnectionStatus((prev) => ({ ...prev, [appId]: true }));
+      setActiveConnectors((prev) => ({ ...prev, [appId]: true }));
+    }
+  };
+
+  // RAG indexing state
   const [ragIndexing, setRagIndexing] = useState(false);
 
   // Enhancement state
@@ -133,17 +239,6 @@ function ChatPage() {
 
   // Progress stream hook
   const progressStream = useProgressStream(sessionId);
-
-  // Connect integration hook
-  const {
-    connectors,
-    connectionStatus,
-    activeConnectors,
-    connectAvailable,
-    toggleConnector,
-    connectApp,
-    getIntegrations
-  } = useConnect(sessionId);
 
   // Get skill display name
   const getSkillDisplayName = (skill) => {
@@ -278,55 +373,39 @@ function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progressStream.items, isProcessing]);
 
-  // RAG status check
-  const checkRagStatus = useCallback(async () => {
-    try {
-      const status = await getRAGStatus(sessionId);
-      setRagAvailable(status.available || false);
-      setRagIndexedDocuments(status.has_indexed_documents || false);
-    } catch (error) {
-      setRagAvailable(false);
-      setRagIndexedDocuments(false);
-    }
-  }, [sessionId]);
-
   // Index document for RAG
   const indexDocumentForRag = useCallback(async (filename) => {
     if (!ragAvailable || ragIndexing) return;
     setRagIndexing(true);
     try {
-      await indexDocument(filename, sessionId);
-      await checkRagStatus();
+      await indexDocumentMutation.mutateAsync({ filename, sessionId });
     } catch (error) {
       console.error('Failed to index document:', error);
     } finally {
       setRagIndexing(false);
     }
-  }, [ragAvailable, ragIndexing, sessionId, checkRagStatus]);
-
-  useEffect(() => {
-    checkRagStatus();
-  }, [checkRagStatus]);
+  }, [ragAvailable, ragIndexing, sessionId, indexDocumentMutation]);
 
   // Session handlers
   const handleNewChat = async () => {
-    const newId = await createNewSession();
+    const newId = await createSessionMutation.mutateAsync();
     setProcessCards([]);
     setUploadedFiles([]);
     setAllFiles([]);
-    setOutputArtifacts([]);
     setActiveArtifact(null);
     setMessages([]);
-    deleteSessionData(sessionId);
+    if (sessionId) {
+      deleteSessionData(sessionId);
+    }
     setRightSidebarCollapsed(true);
-    setRagIndexedDocuments(false);
     setRagIndexing(false);
   };
 
   const handleSelectSession = (selectedId) => {
     if (selectedId === sessionId) return;
 
-    const sessionData = selectSessionHandler(selectedId);
+    setCurrentSessionId(selectedId);
+    const sessionData = loadSessionData(selectedId);
 
     setProcessCards(sessionData?.processCards || []);
     setAllFiles(sessionData?.allFiles || []);
@@ -337,7 +416,7 @@ function ChatPage() {
   };
 
   const handleDeleteSession = async (deleteId) => {
-    await deleteSessionHandler(deleteId);
+    await deleteSessionMutation.mutateAsync(deleteId);
     if (deleteId === sessionId) {
       await handleNewChat();
     }
@@ -392,8 +471,8 @@ function ChatPage() {
     abortControllerRef.current = new AbortController();
 
     const contextFiles = [
-      ...uploadedFiles.map(f => f.filename),
-      ...outputArtifacts.slice(-3).map(f => f.filename)
+      ...uploadedFiles.map((f) => f.filename),
+      ...outputArtifacts.slice(-3).map((f) => f.filename),
     ];
 
     const cardId = `card-${Date.now()}`;
@@ -413,19 +492,19 @@ function ChatPage() {
     setProcessCards(prev => [...prev, newCard]);
 
     try {
-      const response = await sendChatMessage(
-        query,
-        contextFiles,
+      const response = await sendMessageMutation.mutateAsync({
+        message: query,
+        files: contextFiles,
         sessionId,
-        activeArtifact?.filename || null,
+        activeFile: activeArtifact?.filename || null,
         currentPage,
-        getIntegrations(),
-        abortControllerRef.current?.signal,
-        skillParam,  // Pre-selected skill from URL (bypasses LLM skill selection)
-        templateId,  // Template selection
-        urls,        // NEW: Web URLs
-        webModeEnabled  // NEW: Web mode flag
-      );
+        connectors: getIntegrations(),
+        signal: abortControllerRef.current?.signal,
+        skillHint: skillParam,
+        templateId,
+        webUrls: urls,
+        webModeEnabled,
+      });
 
       setProcessCards(prev => prev.map(card =>
         card.id === cardId
@@ -434,34 +513,35 @@ function ChatPage() {
       ));
 
       if (response.new_artifacts && response.new_artifacts.length > 0) {
-        const newArtifacts = response.new_artifacts.map(filename => ({
+        const newArtifacts = response.new_artifacts.map((filename) => ({
           filename,
           type: filename.split('.').pop().toUpperCase(),
           url: getFileUrl(filename),
           previewUrl: getPreviewUrl(filename),
           isOutput: true,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         }));
 
-        setProcessCards(prev => prev.map(card =>
-          card.id === cardId ? { ...card, artifacts: newArtifacts } : card
-        ));
-
-        addArtifacts(newArtifacts);
+        setProcessCards((prev) =>
+          prev.map((card) =>
+            card.id === cardId ? { ...card, artifacts: newArtifacts } : card
+          )
+        );
 
         if (newArtifacts.length > 0) {
           const newArtifact = newArtifacts[0];
           const ext = newArtifact.type?.toLowerCase();
 
-          setAllFiles(prev => {
-            const withoutPending = prev.filter(f => !f.isPending);
+          setAllFiles((prev) => {
+            const withoutPending = prev.filter((f) => !f.isPending);
             return [...newArtifacts, ...withoutPending];
           });
 
-          const updatedArtifact = activeArtifact?.filename === newArtifact.filename
-            ? { ...newArtifact, previewUrl: getPreviewUrl(newArtifact.filename) }
-            : newArtifact;
-          selectArtifact(updatedArtifact);
+          const updatedArtifact =
+            activeArtifact?.filename === newArtifact.filename
+              ? { ...newArtifact, previewUrl: getPreviewUrl(newArtifact.filename) }
+              : newArtifact;
+          setActiveArtifact(updatedArtifact);
 
           if (['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'].includes(ext)) {
             setDocumentPreviewLoading(true);
@@ -475,7 +555,7 @@ function ChatPage() {
           setPendingArtifact(null);
 
           if (ragAvailable) {
-            newArtifacts.forEach(artifact => {
+            newArtifacts.forEach((artifact) => {
               indexDocumentForRag(artifact.filename);
             });
           }
@@ -483,7 +563,7 @@ function ChatPage() {
       } else {
         if (pendingArtifact) {
           setPendingArtifact(null);
-          setAllFiles(prev => prev.filter(f => !f.isPending));
+          setAllFiles((prev) => prev.filter((f) => !f.isPending));
         }
       }
 
@@ -516,30 +596,29 @@ function ChatPage() {
     const files = Array.from(event.target.files);
     if (!files.length) return;
 
-    const results = await uploadFilesHandler(files);
+    try {
+      const results = await uploadFilesMutation.mutateAsync({ files, sessionId });
 
-    if (results.successful.length > 0) {
-      const newFiles = results.successful;
-      setUploadedFiles(prev => [...prev, ...newFiles]);
-      setAllFiles(prev => [...newFiles, ...prev]);
-      selectArtifact(newFiles[0]);
+      if (results.successful && results.successful.length > 0) {
+        const newFiles = results.successful.map((r) => ({
+          filename: r.result?.filename || r.file?.name,
+          type: (r.result?.filename || r.file?.name).split('.').pop().toUpperCase(),
+          url: getFileUrl(r.result?.filename || r.file?.name),
+          previewUrl: getPreviewUrl(r.result?.filename || r.file?.name),
+          isOutput: false,
+          uploadedAt: new Date().toISOString(),
+        }));
 
-      const successMsg = newFiles.length === 1
-        ? `Uploaded: ${newFiles[0].filename}`
-        : `Uploaded ${newFiles.length} files: ${newFiles.map(f => f.filename).join(', ')}`;
+        setUploadedFiles((prev) => [...prev, ...newFiles]);
+        setAllFiles((prev) => [...newFiles, ...prev]);
+        setActiveArtifact(newFiles[0]);
 
-      setMessages(prev => [...prev, { role: 'system', text: successMsg }]);
-
-      if (ragAvailable) {
-        newFiles.forEach(file => indexDocumentForRag(file.filename));
+        if (ragAvailable) {
+          newFiles.forEach((file) => indexDocumentForRag(file.filename));
+        }
       }
-    }
-
-    if (results.errors.length > 0) {
-      setMessages(prev => [...prev, {
-        role: 'error',
-        text: `Upload failed for: ${results.errors.join('; ')}`
-      }]);
+    } catch (error) {
+      console.error('Upload error:', error);
     }
 
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -548,15 +627,14 @@ function ChatPage() {
   // Clear all handler
   const handleClearAll = async () => {
     try {
-      await clearArtifacts();
-      await clearUploads();
+      await clearArtifactsMutation.mutateAsync();
+      await clearUploadsMutation.mutateAsync();
       setUploadedFiles([]);
-      setOutputArtifacts([]);
       setActiveArtifact(null);
       setStorageItem(STORAGE_KEYS.PROCESS_CARDS, []);
       setStorageItem(STORAGE_KEYS.UPLOADED_FILES, []);
       setStorageItem(STORAGE_KEYS.ALL_FILES, []);
-      const newSessionId = await createNewSession();
+      const newSessionId = await createSessionMutation.mutateAsync();
       setProcessCards([]);
       setAllFiles([]);
       setMessages([]);
@@ -568,9 +646,10 @@ function ChatPage() {
   // Remove file handler
   const handleRemoveFile = (file, isUpload) => {
     if (isUpload) {
-      removeFile(file.filename);
+      setUploadedFiles((prev) => prev.filter((f) => f.filename !== file.filename));
     } else {
-      removeArtifact(file.filename);
+      // Artifacts are managed by the query, but we can remove from local state
+      setAllFiles((prev) => prev.filter((f) => f.filename !== file.filename));
     }
     if (activeArtifact?.filename === file.filename) {
       setActiveArtifact(null);
@@ -605,11 +684,35 @@ function ChatPage() {
 
   // Toggle sidebars
   const toggleSidebarCollapse = () => {
-    setSidebarCollapsed(prev => !prev);
+    setSidebarCollapsed(!sidebarCollapsed);
   };
 
   const toggleRightSidebarCollapse = () => {
-    setRightSidebarCollapsed(prev => !prev);
+    setRightSidebarCollapsed(!rightSidebarCollapsed);
+  };
+
+  // Select artifact helper
+  const selectArtifact = (artifact) => {
+    if (!artifact) {
+      setDocumentPreviewLoading(false);
+      setVideoLoadError(false);
+      setActiveArtifact(null);
+      setCurrentPage(1);
+      return;
+    }
+
+    const ext = artifact.type?.toLowerCase();
+
+    if (['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'].includes(ext)) {
+      setDocumentPreviewLoading(true);
+      setVideoLoadError(false);
+    } else {
+      setDocumentPreviewLoading(false);
+      setVideoLoadError(false);
+    }
+
+    setActiveArtifact(artifact);
+    setCurrentPage(1);
   };
 
   // Enhance with images handler
@@ -619,15 +722,22 @@ function ChatPage() {
 
     const cardId = Date.now();
     const originalFilename = activeArtifact.filename;
-    setEnhancementCards(prev => [...prev, {
-      id: cardId,
-      originalFile: originalFilename,
-      enhancedFile: null,
-      status: 'processing'
-    }]);
+    setEnhancementCards((prev) => [
+      ...prev,
+      {
+        id: cardId,
+        originalFile: originalFilename,
+        enhancedFile: null,
+        status: 'processing',
+      },
+    ]);
 
     try {
-      const response = await enhanceWithImages(originalFilename, sessionId, 'professional');
+      const response = await enhanceWithImagesMutation.mutateAsync({
+        filename: originalFilename,
+        sessionId,
+        imageStyle: 'professional',
+      });
       if (response.success && response.enhanced_filename) {
         const newFile = {
           filename: response.enhanced_filename,
@@ -635,27 +745,29 @@ function ChatPage() {
           url: getFileUrl(response.enhanced_filename),
           previewUrl: getPreviewUrl(response.enhanced_filename),
           isOutput: true,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         };
 
-        setAllFiles(prev => [...prev, newFile]);
-        selectArtifact(newFile);
+        setAllFiles((prev) => [...prev, newFile]);
+        setActiveArtifact(newFile);
 
-        setEnhancementCards(prev => prev.map(c =>
-          c.id === cardId
-            ? { ...c, status: 'completed', enhancedFile: newFile.filename }
-            : c
-        ));
+        setEnhancementCards((prev) =>
+          prev.map((c) =>
+            c.id === cardId
+              ? { ...c, status: 'completed', enhancedFile: newFile.filename }
+              : c
+          )
+        );
       } else {
-        setEnhancementCards(prev => prev.map(c =>
-          c.id === cardId ? { ...c, status: 'error' } : c
-        ));
+        setEnhancementCards((prev) =>
+          prev.map((c) => (c.id === cardId ? { ...c, status: 'error' } : c))
+        );
       }
     } catch (error) {
       console.error('Enhancement failed:', error);
-      setEnhancementCards(prev => prev.map(c =>
-        c.id === cardId ? { ...c, status: 'error' } : c
-      ));
+      setEnhancementCards((prev) =>
+        prev.map((c) => (c.id === cardId ? { ...c, status: 'error' } : c))
+      );
     } finally {
       setIsEnhancing(false);
     }
@@ -669,10 +781,10 @@ function ChatPage() {
   useEffect(scrollToBottom, [processCards]);
 
   return (
-    <div className="flex h-screen w-full bg-light-bg overflow-hidden">
+    <div className={`flex h-screen w-full overflow-hidden ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
       {/* Chat History Sidebar */}
       <ChatHistorySidebar
-        sessions={chatHistory}
+        sessions={chatHistoryData}
         currentSessionId={sessionId}
         onSelectSession={handleSelectSession}
         onNewChat={handleNewChat}
@@ -682,20 +794,20 @@ function ChatPage() {
       />
 
       {/* Chat Section */}
-      <div className={`flex flex-col h-full border-r border-light-border transition-all duration-300 ${allFiles.length > 0 ? (sidebarCollapsed ? 'w-[38%]' : 'w-[34%]') : 'flex-1'}`}>
+      <div className={`flex flex-col h-full border-r transition-all duration-300 ${isDark ? 'border-dark-border' : 'border-light-border'} ${allFiles.length > 0 ? (sidebarCollapsed ? 'w-[38%]' : 'w-[34%]') : 'flex-1'}`}>
         {/* Enhanced Header with skill indicator and home button */}
-        <div className="h-16 border-b border-light-border flex items-center justify-between px-4 bg-light-bg">
-          <div className="flex items-center gap-3">
+        <div className={`h-14 sm:h-16 border-b flex items-center justify-between px-2 sm:px-3 md:px-4 ${isDark ? 'border-dark-border bg-dark-bg' : 'border-light-border bg-light-bg'}`}>
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <Link
               to="/"
-              className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-lg transition-all"
+              className={`p-1.5 sm:p-2 rounded-lg transition-all flex-shrink-0 ${isDark ? 'text-dark-text-secondary hover:text-brand-accent-400 hover:bg-brand-accent-900/30' : 'text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50'}`}
               title="Back to Tools"
             >
-              <Home className="w-5 h-5" />
+              <Home className="w-4 h-4 sm:w-5 sm:h-5" />
             </Link>
             {skillParam && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-accent-50 rounded-lg border border-brand-accent-200">
-                <span className="text-sm font-medium text-brand-accent-700">
+              <div className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border flex-shrink-0 ${isDark ? 'bg-brand-accent-900/30 border-brand-accent-800' : 'bg-brand-accent-50 border-brand-accent-200'}`}>
+                <span className={`text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-none ${isDark ? 'text-brand-accent-300' : 'text-brand-accent-700'}`}>
                   {getSkillDisplayName(skillParam)}
                 </span>
               </div>
@@ -727,11 +839,11 @@ function ChatPage() {
             isUploading={isUploading}
             skill={skillParam}
             webModeEnabled={webModeEnabled}
-            onToggleWebMode={() => setWebModeEnabled(!webModeEnabled)}
+            onToggleWebMode={toggleWebMode}
           />
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar-dark bg-light-bg">
+            <div className={`flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar-dark ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
               <AnimatePresence>
                 {processCards.map((card) => (
                   <motion.div
@@ -742,7 +854,7 @@ function ChatPage() {
                   >
                     {/* User Message Bubble */}
                     <div className="flex justify-end px-4">
-                      <div className="bg-light-sidebar border border-light-border px-5 py-3 rounded-2xl rounded-tr-sm text-light-text max-w-2xl shadow-sm">
+                      <div className={`px-5 py-3 rounded-2xl rounded-tr-sm max-w-2xl shadow-sm ${isDark ? 'bg-dark-sidebar border-dark-border text-dark-text' : 'bg-light-sidebar border-light-border text-light-text'} border`}>
                         <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{card.query}</p>
                       </div>
                     </div>
@@ -789,7 +901,7 @@ function ChatPage() {
             </div>
 
             {/* Input Area */}
-            <div className="border-t border-light-border bg-light-sidebar p-4">
+            <div className={`border-t p-4 ${isDark ? 'border-dark-border bg-dark-sidebar' : 'border-light-border bg-light-sidebar'}`}>
               {/* Uploaded Files Row */}
               {uploadedFiles.length > 0 && (
                 <div className="mb-3 flex flex-wrap gap-2">
@@ -807,12 +919,12 @@ function ChatPage() {
               )}
 
               {/* Main Input Row */}
-              <form onSubmit={handleSendMessage} className="flex items-center gap-3 bg-light-bg border border-light-border rounded-xl px-3 py-2 focus-within:border-light-border-hover transition-colors">
+              <form onSubmit={handleSendMessage} className={`flex items-center gap-3 border rounded-xl px-3 py-2 transition-colors ${isDark ? 'bg-dark-bg border-dark-border focus-within:border-dark-border-hover' : 'bg-light-bg border-light-border focus-within:border-light-border-hover'}`}>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
-                  className="p-2 text-brand-accent-500 hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${isDark ? 'text-brand-accent-400 hover:text-brand-accent-300 hover:bg-brand-accent-900/30' : 'text-brand-accent-500 hover:text-brand-accent-600 hover:bg-brand-accent-50'}`}
                   title="Attach files"
                 >
                   {isUploading ? (
@@ -831,17 +943,17 @@ function ChatPage() {
                   connectionStatus={connectionStatus}
                   activeConnectors={activeConnectors}
                   onToggleConnector={toggleConnector}
-                  onConnectApp={connectApp}
+                  onConnectApp={handleConnectApp}
                   connectAvailable={connectAvailable}
                 />
 
                 {/* Web Scraping Button */}
                 <button
                   type="button"
-                  onClick={() => setWebModeEnabled(!webModeEnabled)}
+                  onClick={toggleWebMode}
                   className={`p-2 rounded-lg transition-all ${webModeEnabled
                     ? 'text-white bg-gradient-to-r from-blue-500 to-cyan-500 shadow-md hover:from-blue-600 hover:to-cyan-600'
-                    : 'text-light-text-secondary hover:text-light-text hover:bg-white'
+                    : isDark ? 'text-dark-text-secondary hover:text-dark-text hover:bg-dark-surface' : 'text-light-text-secondary hover:text-light-text hover:bg-white'
                     }`}
                   title={webModeEnabled ? "Web mode ON - Will scrape URLs" : "Enable web scraping"}
                 >
@@ -853,7 +965,7 @@ function ChatPage() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={skillParam ? `Ask about ${getSkillDisplayName(skillParam)}...` : "Reply..."}
-                  className="flex-1 py-2 bg-transparent border-none outline-none text-light-text placeholder-light-text-muted text-sm"
+                  className={`flex-1 py-2 bg-transparent border-none outline-none text-sm ${isDark ? 'text-dark-text placeholder-dark-text-muted' : 'text-light-text placeholder-light-text-muted'}`}
                   disabled={isProcessing}
                 />
 
@@ -872,7 +984,7 @@ function ChatPage() {
                   <button
                     type="submit"
                     disabled={!input.trim()}
-                    className="p-2.5 bg-brand-accent-500 text-white rounded-lg hover:bg-brand-accent-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    className={`p-2.5 text-white rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? 'bg-brand-accent-600 hover:bg-brand-accent-500' : 'bg-brand-accent-500 hover:bg-brand-accent-600'}`}
                     title="Send message"
                   >
                     <Send className="w-4 h-4" />
@@ -880,7 +992,7 @@ function ChatPage() {
                 )}
               </form>
 
-              <div className="text-center mt-2 text-xs text-light-text-muted">
+              <div className={`text-center mt-2 text-xs ${isDark ? 'text-dark-text-muted' : 'text-light-text-muted'}`}>
                 Phi Docs can make mistakes. Please double-check responses.
               </div>
             </div>
@@ -891,58 +1003,68 @@ function ChatPage() {
       {/* Right Section: Document Viewer + File List */}
       {
         (allFiles.length > 0 || pendingArtifact) && (
-          <div className="flex-1 flex h-full bg-light-bg">
+          <div className={`flex-1 flex h-full ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
             {/* Document Viewer */}
-            <div className="flex-1 flex flex-col border-r border-light-border">
-              <div className="h-16 border-b border-light-border flex items-center justify-between px-6 bg-light-bg">
-                <div className="flex items-center gap-3">
-                  <h2 className="font-display font-semibold text-xl text-light-text flex items-center gap-2 tracking-tight">
-                    <FileText className="w-5 h-5 text-brand-accent-500" />
-                    {activeArtifact?.filename || 'Document Preview'}
+            <div className={`flex-1 flex flex-col border-r ${isDark ? 'border-dark-border' : 'border-light-border'}`}>
+              <div className={`h-14 sm:h-16 border-b flex items-center justify-between px-3 sm:px-4 md:px-6 gap-2 ${isDark ? 'border-dark-border bg-dark-bg' : 'border-light-border bg-light-bg'}`}>
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                  <h2 className={`font-display font-semibold text-sm sm:text-base md:text-lg lg:text-xl flex items-center gap-1.5 sm:gap-2 tracking-tight truncate ${isDark ? 'text-dark-text' : 'text-light-text'}`}>
+                    <FileText className={`w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} />
+                    <span className="truncate">{activeArtifact?.filename || 'Document Preview'}</span>
                   </h2>
                   {activeArtifact && (
-                    <div className="flex items-center gap-2 text-xs text-brand-accent-600 bg-brand-accent-50 px-3 py-1 rounded-full">
-                      <Eye className="w-3 h-3" />
-                      Viewing{['pdf', 'docx', 'doc', 'pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
-                        ? (['pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
-                          ? ` (Slide ${currentPage})`
-                          : ` (Page ${currentPage})`)
-                        : ''}
+                    <div className={`flex items-center gap-1 sm:gap-2 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full flex-shrink-0 ${isDark ? 'text-brand-accent-300 bg-brand-accent-900/30' : 'text-brand-accent-600 bg-brand-accent-50'}`}>
+                      <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                      <span className="hidden sm:inline">
+                        Viewing{['pdf', 'docx', 'doc', 'pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
+                          ? (['pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
+                            ? ` (Slide ${currentPage})`
+                            : ` (Page ${currentPage})`)
+                          : ''}
+                      </span>
+                      <span className="sm:hidden">
+                        {['pdf', 'docx', 'doc', 'pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
+                          ? (['pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
+                            ? `S${currentPage}`
+                            : `P${currentPage}`)
+                          : ''}
+                      </span>
                     </div>
                   )}
                 </div>
                 {activeArtifact && !activeArtifact.isPending && activeArtifact.url && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                     {['docx', 'pptx', 'xlsx', 'pdf'].includes(activeArtifact.type?.toLowerCase()) && (
                       <button
                         onClick={handleEnhanceWithImages}
                         disabled={isEnhancing}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200"
+                        className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200"
                         title="Add AI-generated images to this document"
                       >
                         {isEnhancing ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
                         ) : (
-                          <Wand2 className="w-4 h-4" />
+                          <Wand2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         )}
-                        {isEnhancing ? 'Enhancing...' : 'Enhance with AI'}
+                        <span className="hidden sm:inline">{isEnhancing ? 'Enhancing...' : 'Enhance with AI'}</span>
+                        <span className="sm:hidden">{isEnhancing ? '...' : 'AI'}</span>
                       </button>
                     )}
                     <a
                       href={activeArtifact.url}
                       download={activeArtifact.filename}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-light-text bg-white border border-light-border hover:bg-gray-50 rounded-lg transition-all duration-200"
+                      className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${isDark ? 'text-dark-text bg-dark-surface border-dark-border hover:bg-dark-sidebar' : 'text-light-text bg-white border-light-border hover:bg-gray-50'} border`}
                     >
-                      <Download className="w-4 h-4" />
-                      Download
+                      <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Download</span>
                     </a>
                   </div>
                 )}
               </div>
 
-              <div className="flex-1 overflow-auto p-4 bg-light-bg">
+              <div className={`flex-1 overflow-auto p-4 ${isDark ? 'bg-dark-bg' : 'bg-light-bg'}`}>
                 {activeArtifact ? (
-                  <div className="h-full bg-white rounded-lg overflow-hidden shadow-sm border border-light-border">
+                  <div className={`h-full rounded-lg overflow-hidden shadow-sm border ${isDark ? 'bg-dark-surface border-dark-border' : 'bg-white border-light-border'}`}>
                     <DocumentPreview
                       artifact={activeArtifact}
                       artifactContent={artifactContent}
@@ -955,7 +1077,7 @@ function ChatPage() {
                     />
                   </div>
                 ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-light-text-secondary">
+                  <div className={`h-full flex flex-col items-center justify-center ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
                     <FileText className="w-24 h-24 mb-4 opacity-20" />
                     <p className="text-lg font-medium">Select a document</p>
                     <p className="text-sm">Choose from the list on the right</p>
@@ -965,25 +1087,25 @@ function ChatPage() {
             </div>
 
             {/* Document List (collapsible) */}
-            <div className={`flex flex-col h-full bg-light-sidebar transition-all duration-300 border-l border-light-border ${rightSidebarCollapsed ? 'w-12' : 'w-52'}`}>
-              <div className="h-16 border-b border-light-border flex items-center justify-between px-3">
+            <div className={`flex flex-col h-full transition-all duration-300 border-l ${isDark ? 'bg-dark-sidebar border-dark-border' : 'bg-light-sidebar border-light-border'} ${rightSidebarCollapsed ? 'w-10 sm:w-12' : 'w-48 sm:w-52'}`}>
+              <div className={`h-14 sm:h-16 border-b flex items-center justify-between px-2 sm:px-3 ${isDark ? 'border-dark-border' : 'border-light-border'}`}>
                 {!rightSidebarCollapsed && (
                   <>
-                    <h3 className="font-semibold text-xs text-light-text-secondary flex items-center gap-1.5">
-                      <Folder className="w-3.5 h-3.5 text-brand-accent-500" />
-                      Files
+                    <h3 className={`font-semibold text-[10px] sm:text-xs flex items-center gap-1 sm:gap-1.5 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
+                      <Folder className={`w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0 ${isDark ? 'text-brand-accent-400' : 'text-brand-accent-500'}`} />
+                      <span className="truncate">Files</span>
                     </h3>
-                    <span className="bg-brand-accent-500/10 text-brand-accent-500 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-brand-accent-500/20">
+                    <span className={`text-[9px] sm:text-[10px] font-bold px-1 sm:px-1.5 py-0.5 rounded-full border flex-shrink-0 ${isDark ? 'bg-brand-accent-900/30 text-brand-accent-300 border-brand-accent-800' : 'bg-brand-accent-500/10 text-brand-accent-500 border-brand-accent-500/20'}`}>
                       {allFiles.length}
                     </span>
                   </>
                 )}
                 <button
                   onClick={toggleRightSidebarCollapse}
-                  className={`p-1.5 text-light-text-secondary hover:text-light-text hover:bg-white/50 rounded-lg transition-colors ${rightSidebarCollapsed ? 'mx-auto' : ''}`}
+                  className={`p-1 sm:p-1.5 rounded-lg transition-colors ${rightSidebarCollapsed ? 'mx-auto' : ''} ${isDark ? 'text-dark-text-secondary hover:text-dark-text hover:bg-dark-surface/50' : 'text-light-text-secondary hover:text-light-text hover:bg-white/50'}`}
                   title={rightSidebarCollapsed ? 'Expand files' : 'Collapse files'}
                 >
-                  {rightSidebarCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                  {rightSidebarCollapsed ? <ChevronLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                 </button>
               </div>
 
@@ -997,9 +1119,9 @@ function ChatPage() {
                         <button
                           key={`${file.filename}-${index}`}
                           onClick={() => selectArtifact(file)}
-                          className={`p-2 rounded-lg transition-colors ${isActive
-                            ? 'bg-light-bg text-brand-accent-500 border border-brand-accent-500/30'
-                            : 'text-light-text-secondary hover:bg-white/50 hover:text-light-text'}`}
+                          className={`p-2 rounded-lg transition-colors border ${isActive
+                            ? isDark ? 'bg-dark-bg text-brand-accent-400 border-brand-accent-600/30' : 'bg-light-bg text-brand-accent-500 border-brand-accent-500/30'
+                            : isDark ? 'text-dark-text-secondary hover:bg-dark-surface/50 hover:text-dark-text border-transparent' : 'text-light-text-secondary hover:bg-white/50 hover:text-light-text border-transparent'}`}
                           title={file.filename}
                         >
                           <IconComponent className="w-4 h-4" />
@@ -1020,22 +1142,22 @@ function ChatPage() {
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.03 }}
                         className={`p-2 rounded-lg border cursor-pointer transition-all ${isActive
-                          ? 'bg-light-bg border-brand-accent-500/30'
-                          : 'bg-transparent border-transparent hover:bg-white/50 hover:border-light-border'
+                          ? isDark ? 'bg-dark-bg border-brand-accent-600/30' : 'bg-light-bg border-brand-accent-500/30'
+                          : isDark ? 'bg-transparent border-transparent hover:bg-dark-surface/50 hover:border-dark-border' : 'bg-transparent border-transparent hover:bg-white/50 hover:border-light-border'
                           }`}
                         onClick={() => selectArtifact(file)}
                       >
                         <div className="flex items-center gap-2">
-                          <div className={`p-1 rounded ${isActive ? 'bg-brand-accent-500/10' : 'bg-white'}`}>
-                            <IconComponent className={`w-3 h-3 ${isActive ? 'text-brand-accent-500' : 'text-light-text-secondary'}`} />
+                          <div className={`p-1 rounded ${isActive ? isDark ? 'bg-brand-accent-900/30' : 'bg-brand-accent-500/10' : isDark ? 'bg-dark-surface' : 'bg-white'}`}>
+                            <IconComponent className={`w-3 h-3 ${isActive ? isDark ? 'text-brand-accent-400' : 'text-brand-accent-500' : isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className={`text-[11px] font-medium truncate ${isActive ? 'text-light-text' : 'text-light-text-secondary'}`}>
+                            <div className={`text-[11px] font-medium truncate ${isActive ? isDark ? 'text-dark-text' : 'text-light-text' : isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
                               {file.filename}
                             </div>
                           </div>
                           {isNewest && (
-                            <span className="text-[8px] font-bold px-1 py-0.5 bg-brand-accent-500/10 text-brand-accent-500 rounded border border-brand-accent-500/20">
+                            <span className={`text-[8px] font-bold px-1 py-0.5 rounded border ${isDark ? 'bg-brand-accent-900/30 text-brand-accent-300 border-brand-accent-800' : 'bg-brand-accent-500/10 text-brand-accent-500 border-brand-accent-500/20'}`}>
                               NEW
                             </span>
                           )}
@@ -1051,6 +1173,6 @@ function ChatPage() {
       }
     </div >
   );
-}
+};
 
 export default ChatPage;

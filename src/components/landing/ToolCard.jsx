@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ChevronRight, Sparkles } from 'lucide-react';
+import { useTheme } from '../../context/ThemeContext';
 
 /**
  * ToolCard - Enhanced card component for displaying tools on the landing page
@@ -29,6 +30,8 @@ const ToolCard = ({
   featured = false,
   delay = 0
 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   if (featured) {
     // Featured card - Unified Assistant with examples
     return (
@@ -39,7 +42,7 @@ const ToolCard = ({
         className="col-span-full"
       >
         <Link to={route} className="group block">
-          <div className={`relative bg-gradient-to-br ${gradient || 'from-brand-accent-500 to-brand-accent-700'} 
+          <div className={`relative bg-gradient-to-br ${gradient || 'from-cyan-500 to-blue-600'} 
                           rounded-2xl p-8 overflow-hidden shadow-lg hover:shadow-xl 
                           transition-all duration-300 transform hover:scale-[1.01]`}>
             {/* Background pattern */}
@@ -110,36 +113,38 @@ const ToolCard = ({
         to={route}
         className="group block h-full"
       >
-        <div className="relative h-full bg-white border border-light-border rounded-xl p-5 
-                        hover:shadow-lg transition-all duration-300 overflow-hidden">
+        <div className={`relative h-full backdrop-blur-md border rounded-xl p-5 
+                        hover:shadow-lg transition-all duration-300 overflow-hidden ${isDark 
+                          ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20' 
+                          : 'bg-white/60 border-light-border/50 hover:bg-white/80 hover:border-light-border'}`}>
           {/* Gradient background (subtle) */}
           {gradient && (
             <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 
-                            group-hover:opacity-50 transition-opacity duration-300 pointer-events-none`} />
+                            group-hover:opacity-20 transition-opacity duration-300 pointer-events-none`} />
           )}
 
           {/* Top accent bar */}
           <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r 
-                          ${gradient ? gradient.replace('from-', 'from-').replace('to-', 'to-') : 'from-brand-accent-400 to-brand-accent-600'} 
+                          ${isDark ? 'from-cyan-400 to-blue-500' : 'from-brand-accent-400 to-brand-accent-600'}
                           transform origin-left scale-x-0 group-hover:scale-x-100 transition-transform duration-300`} />
 
           <div className="relative">
             {/* Icon */}
             <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4
-                            bg-gradient-to-br ${gradient || 'from-gray-50 to-gray-100'}
+                            ${isDark ? 'bg-gradient-to-br from-cyan-500/20 to-blue-500/20' : 'bg-gradient-to-br from-brand-accent-100 to-brand-accent-200'}
                             group-hover:scale-110 transition-transform duration-300`}>
-              <Icon className={`w-6 h-6 ${iconColor || 'text-brand-accent-600'}`} />
+              <Icon className={`w-6 h-6 ${iconColor || (isDark ? 'text-cyan-400' : 'text-brand-accent-600')}`} />
             </div>
 
             {/* Title */}
-            <h3 className={`text-lg font-semibold text-light-text mb-2 
-                           group-hover:${iconColor?.replace('text-', 'text-') || 'text-brand-accent-700'} 
-                           transition-colors duration-200`}>
+            <h3 className={`text-lg font-semibold mb-2 transition-colors duration-200 ${isDark 
+              ? 'text-white group-hover:text-cyan-300' 
+              : 'text-light-text group-hover:text-brand-accent-600'}`}>
               {title}
             </h3>
 
             {/* Description */}
-            <p className="text-sm text-light-text-secondary leading-relaxed mb-4">
+            <p className={`text-sm leading-relaxed mb-4 ${isDark ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
               {description}
             </p>
 
@@ -149,9 +154,9 @@ const ToolCard = ({
                 {tags.map((tag, i) => (
                   <span
                     key={i}
-                    className="px-2 py-1 bg-white/80 border border-light-border rounded-md 
-                               text-xs font-medium text-light-text-secondary
-                               group-hover:border-current group-hover:bg-white transition-colors"
+                    className={`px-2 py-1 border rounded-md text-xs font-medium transition-colors ${isDark
+                      ? 'bg-white/10 border-white/20 text-dark-text-secondary group-hover:border-white/30 group-hover:bg-white/20'
+                      : 'bg-brand-accent-50 border-brand-accent-200 text-brand-accent-700 group-hover:border-brand-accent-300 group-hover:bg-brand-accent-100'}`}
                   >
                     {tag}
                   </span>
@@ -160,10 +165,9 @@ const ToolCard = ({
             )}
 
             {/* Action indicator */}
-            <div className={`flex items-center gap-1 text-sm font-medium
-                            ${iconColor?.replace('600', '500') || 'text-brand-accent-500'}
-                            group-hover:${iconColor?.replace('600', '700') || 'text-brand-accent-700'} 
-                            transition-colors`}>
+            <div className={`flex items-center gap-1 text-sm font-medium transition-colors ${isDark
+              ? 'text-cyan-400 group-hover:text-cyan-300'
+              : 'text-brand-accent-600 group-hover:text-brand-accent-700'}`}>
               <span>{isExternal ? 'Open Tool' : 'Start Chat'}</span>
               <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
             </div>
