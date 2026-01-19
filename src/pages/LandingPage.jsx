@@ -1,8 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Sparkles, ArrowRight, Zap, FileText, Image } from 'lucide-react';
+import { Sparkles, ArrowRight, Terminal, Box } from 'lucide-react';
 import ToolsGrid from '../components/landing/ToolsGrid';
+import phiCover from '../assets/phi.jpeg';
+import heroVideo from '../assets/hero.mp4';
+import docxLogo from '../assets/docx.png';
+import pptxLogo from '../assets/pptx.png';
+import xlsxLogo from '../assets/xlsx.png';
 
 const LandingPage = () => {
   return (
@@ -19,8 +24,8 @@ const LandingPage = () => {
                 className="w-10 h-10 object-contain"
                 onError={(e) => { e.target.style.display = 'none' }}
               />
-              <span className="text-xl font-semibold text-light-text">
-                <span className="text-brand-accent-600">Doc</span>Flies
+              <span className="text-xl font-semibold text-light-text tracking-tight">
+                Phi <span className="text-brand-accent-600">Docs</span>
               </span>
             </div>
 
@@ -37,135 +42,100 @@ const LandingPage = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-accent-50/50 via-light-bg to-brand-accent-100/30" />
+      {/* Video Hero Section */}
+      <section className="relative h-[60vh] w-full overflow-hidden bg-black">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover opacity-80"
+        >
+          <source src={heroVideo} type="video/mp4" />
+        </video>
+        
+        {/* Overlay for better button visibility */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40" />
 
-        {/* Pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.03]"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23886C4A' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundSize: '60px 60px'
-          }}
-        />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center max-w-3xl mx-auto"
-          >
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-brand-accent-100 
-                            rounded-full text-sm font-medium text-brand-accent-700 mb-6">
-              <Zap className="w-4 h-4" />
-              AI-Powered Document & Creative Tools
-            </div>
-
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-light-text mb-6 leading-tight">
-              Your Complete
-              <span className="block text-transparent bg-clip-text bg-gradient-to-r 
-                               from-brand-accent-500 to-brand-accent-700">
-                AI Workspace
-              </span>
-            </h1>
-
-            {/* Subheadline */}
-            <p className="text-lg text-light-text-secondary mb-8 max-w-2xl mx-auto">
-              Create documents, generate images, design marketing materials, and automate workflows
-              with powerful AI tools—all in one place.
-            </p>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                to="/chat"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 
-                           bg-brand-accent-500 text-white rounded-lg font-semibold text-base
-                           hover:bg-brand-accent-600 transition-all shadow-soft hover:shadow-medium"
-              >
-                Start Creating
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <a
-                href="#tools"
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 
-                           bg-white text-light-text border border-light-border rounded-lg 
-                           font-semibold text-base hover:border-brand-accent-300 transition-all"
-              >
-                Explore Tools
-              </a>
-            </div>
-          </motion.div>
-
-          {/* Feature highlights */}
+        <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-4xl mx-auto"
+            transition={{ duration: 1 }}
+            className="text-center"
           >
-            {/* Documents Feature */}
-            <div className="text-center p-6 bg-gradient-to-br from-brand-accent-50 to-brand-accent-100/50 rounded-2xl border border-brand-accent-100">
-              <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                <FileText className="w-8 h-8 text-brand-accent-600" />
-              </div>
-              <h3 className="text-xl font-bold text-light-text mb-2">Document Tools</h3>
-              <p className="text-sm text-light-text-secondary mb-3">
-                Create professional documents with AI assistance
-              </p>
-              <div className="flex flex-wrap justify-center gap-2 text-xs text-brand-accent-700">
-                <span className="px-2 py-1 bg-white/60 rounded-md">Reports</span>
-                <span className="px-2 py-1 bg-white/60 rounded-md">Spreadsheets</span>
-                <span className="px-2 py-1 bg-white/60 rounded-md">Presentations</span>
-                <span className="px-2 py-1 bg-white/60 rounded-md">PDFs</span>
-              </div>
-            </div>
-
-            {/* Design & Creative Feature */}
-            <div className="text-center p-6 bg-gradient-to-br from-brand-accent-50 to-brand-accent-100/50 rounded-2xl border border-brand-accent-100">
-              <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-                <Image className="w-8 h-8 text-brand-accent-600" />
-              </div>
-              <h3 className="text-xl font-bold text-light-text mb-2">Digital Marketing</h3>
-              <p className="text-sm text-light-text-secondary mb-3">
-                AI-powered visual content and brand assets
-              </p>
-              <div className="flex flex-wrap justify-center gap-2 text-xs text-brand-accent-700">
-                <span className="px-2 py-1 bg-white/60 rounded-md">Images</span>
-                <span className="px-2 py-1 bg-white/60 rounded-md">Logos</span>
-                <span className="px-2 py-1 bg-white/60 rounded-md">Marketing</span>
-                <span className="px-2 py-1 bg-white/60 rounded-md">Web Design</span>
-              </div>
-            </div>
+            {/* Content removed per request */}
           </motion.div>
         </div>
       </section>
 
-      {/* Tools Section */}
-      <section id="tools" className="py-16 lg:py-24">
+      {/* Core Documents Section - Medium Cards */}
+      <section id="documents" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section Header */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl font-bold text-light-text mb-3">
-              All Your Tools in One Place
-            </h2>
-            <p className="text-light-text-secondary max-w-2xl mx-auto">
-              Choose a tool to get started. Document tools open in the chat interface,
-              while marketing tools have dedicated visual editors.
-            </p>
-          </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* DOCX Card */}
+            <motion.div
+              whileHover={{ y: -10 }}
+              className="group relative bg-light-bg rounded-3xl p-8 border border-light-border hover:border-brand-accent-300 transition-all duration-300 shadow-sm hover:shadow-xl"
+            >
+              <Link to="/chat?skill=docx" state={{ forceNew: true }} className="flex flex-col items-center text-center">
+                <div className="w-24 h-24 mb-6 transition-transform group-hover:scale-110">
+                  <img src={docxLogo} alt="Word" className="w-full h-full object-contain" />
+                </div>
+                <h3 className="text-xl font-bold text-light-text mb-3">MS Word (DOCX)</h3>
+                <p className="text-sm text-light-text-secondary mb-6 leading-relaxed">
+                  Draft contracts, resumes, and formal reports with pixel-perfect formatting.
+                </p>
+                <div className="mt-auto px-6 py-2 bg-white border border-light-border rounded-full text-sm font-medium text-brand-accent-600 group-hover:bg-brand-accent-500 group-hover:text-white transition-colors">
+                  Start Processing
+                </div>
+              </Link>
+            </motion.div>
 
-          {/* Tools Grid */}
+            {/* PPTX Card */}
+            <motion.div
+              whileHover={{ y: -10 }}
+              className="group relative bg-light-bg rounded-3xl p-8 border border-light-border hover:border-brand-accent-300 transition-all duration-300 shadow-sm hover:shadow-xl"
+            >
+              <Link to="/chat?skill=pptx" state={{ forceNew: true }} className="flex flex-col items-center text-center">
+                <div className="w-24 h-24 mb-6 transition-transform group-hover:scale-110">
+                  <img src={pptxLogo} alt="PowerPoint" className="w-full h-full object-contain" />
+                </div>
+                <h3 className="text-xl font-bold text-light-text mb-3">MS Presentation (PPTX)</h3>
+                <p className="text-sm text-light-text-secondary mb-6 leading-relaxed">
+                  Design structured pitch decks and visual presentations from plain text.
+                </p>
+                <div className="mt-auto px-6 py-2 bg-white border border-light-border rounded-full text-sm font-medium text-brand-accent-600 group-hover:bg-brand-accent-500 group-hover:text-white transition-colors">
+                  Generate Slides
+                </div>
+              </Link>
+            </motion.div>
+
+            {/* XLSX Card */}
+            <motion.div
+              whileHover={{ y: -10 }}
+              className="group relative bg-light-bg rounded-3xl p-8 border border-light-border hover:border-brand-accent-300 transition-all duration-300 shadow-sm hover:shadow-xl"
+            >
+              <Link to="/chat?skill=xlsx" state={{ forceNew: true }} className="flex flex-col items-center text-center">
+                <div className="w-24 h-24 mb-6 transition-transform group-hover:scale-110">
+                  <img src={xlsxLogo} alt="Excel" className="w-full h-full object-contain" />
+                </div>
+                <h3 className="text-xl font-bold text-light-text mb-3">MS Spreadsheet (XLSX)</h3>
+                <p className="text-sm text-light-text-secondary mb-6 leading-relaxed">
+                  Automate data sheets, complex formulas, and quarterly financial reports.
+                </p>
+                <div className="mt-auto px-6 py-2 bg-white border border-light-border rounded-full text-sm font-medium text-brand-accent-600 group-hover:bg-brand-accent-500 group-hover:text-white transition-colors">
+                  Analyze Data
+                </div>
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Remaining Tools Grid */}
+      <section id="tools" className="py-20 lg:py-32 bg-light-bg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <ToolsGrid />
         </div>
       </section>
@@ -182,7 +152,7 @@ const LandingPage = () => {
                 onError={(e) => { e.target.style.display = 'none' }}
               />
               <span className="text-sm text-light-text-secondary">
-                DocFlies AI — Powered by Gemini
+                Phi Docs AI — Powered by Gemini
               </span>
             </div>
             <div className="flex items-center gap-6 text-sm text-light-text-secondary">

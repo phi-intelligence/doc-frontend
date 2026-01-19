@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Send, Paperclip, RefreshCw, Clock, ChevronDown, ChevronRight, ChevronLeft,
   Trash2, Download, Eye, FileText, Folder, Wand2, Cloud, Mail, Square, Home,
-  Globe
+  Globe, Zap, MessageSquarePlus
 } from 'lucide-react';
 
 // Import utilities
@@ -42,6 +42,8 @@ function ChatPage() {
   // Get skill from URL params
   const [searchParams] = useSearchParams();
   const skillParam = searchParams.get('skill');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Session management
   const {
@@ -120,6 +122,19 @@ function ChatPage() {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [enhancementCards, setEnhancementCards] = useState([]);
 
+  // Resizable layout state
+  const [chatWidth, setChatWidth] = useState(() => {
+    const saved = localStorage.getItem('chat_width');
+    if (saved) return parseInt(saved);
+    
+    // Default to a generous 65% split of remaining space
+    const sidebarWidth = 224; 
+    const rightSidebarWidth = 208;
+    const available = window.innerWidth - sidebarWidth - rightSidebarWidth;
+    return Math.floor(available * 0.65);
+  });
+  const [isResizing, setIsResizing] = useState(false);
+
   // All files (combined uploaded + output artifacts)
   const [allFiles, setAllFiles] = useState(() => {
     return getStorageItem(STORAGE_KEYS.ALL_FILES, []);
@@ -171,10 +186,11 @@ function ChatPage() {
 
   useEffect(() => {
     setStorageItem(STORAGE_KEYS.ALL_FILES, allFiles);
-    if (allFiles.length > 0 && rightSidebarCollapsed) {
+    // Only auto-open the right sidebar when the VERY FIRST file is added
+    if (allFiles.length === 1 && rightSidebarCollapsed) {
       setRightSidebarCollapsed(false);
     }
-  }, [allFiles, rightSidebarCollapsed]);
+  }, [allFiles]);
 
   useEffect(() => {
     setStorageItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, sidebarCollapsed);
@@ -183,6 +199,47 @@ function ChatPage() {
   useEffect(() => {
     setStorageItem(STORAGE_KEYS.RIGHT_SIDEBAR_COLLAPSED, rightSidebarCollapsed);
   }, [rightSidebarCollapsed]);
+
+  useEffect(() => {
+    localStorage.setItem('chat_width', chatWidth.toString());
+  }, [chatWidth]);
+
+  // Resize handler
+  const startResizing = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((e) => {
+    if (isResizing) {
+      const sidebarWidth = sidebarCollapsed ? 48 : 224;
+      const rightSidebarWidth = rightSidebarCollapsed ? 48 : 208;
+      const newWidth = e.clientX - sidebarWidth;
+      
+      // Relaxed Constraints for better compatibility
+      const minChatWidth = 400;
+      const minDocWidth = 300;
+      const availableSpace = window.innerWidth - sidebarWidth - rightSidebarWidth;
+      const maxChatWidth = Math.max(minChatWidth, availableSpace - minDocWidth);
+      
+      if (newWidth >= minChatWidth && newWidth <= maxChatWidth) {
+        setChatWidth(newWidth);
+      }
+    }
+  }, [isResizing, sidebarCollapsed, rightSidebarCollapsed]);
+
+  useEffect(() => {
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [resize, stopResizing]);
 
   // Sync progress stream to active card
   useEffect(() => {
@@ -292,24 +349,79 @@ function ChatPage() {
 
   // Index document for RAG
   const indexDocumentForRag = useCallback(async (filename) => {
-    if (!ragAvailable || ragIndexing) return;
+    if (!ragAvailable || !filename) return;
+
     setRagIndexing(true);
     try {
       await indexDocument(filename, sessionId);
-      await checkRagStatus();
+      setRagIndexedDocuments(true);
     } catch (error) {
-      console.error('Failed to index document:', error);
+      console.error('Failed to index document for RAG:', error);
     } finally {
       setRagIndexing(false);
     }
-  }, [ragAvailable, ragIndexing, sessionId, checkRagStatus]);
+  }, [ragAvailable, sessionId]);
 
   useEffect(() => {
     checkRagStatus();
   }, [checkRagStatus]);
 
+  // Handle returning from editor with saved file
+  useEffect(() => {
+    if (location.state?.savedFile && location.state?.savedAt) {
+      const savedFilename = location.state.savedFile;
+      const savedAt = location.state.savedAt;
+      console.log('Returning from editor with saved file:', savedFilename);
+
+      const freshPreviewUrl = getPreviewUrl(savedFilename);
+
+      // 1. Update file list (refresh existing or add new)
+      setAllFiles(prev => {
+        const existingFileIndex = prev.findIndex(f => f.filename === savedFilename);
+        
+        if (existingFileIndex >= 0) {
+          // Refresh existing file metadata
+          const updatedFiles = [...prev];
+          const updatedFile = {
+            ...updatedFiles[existingFileIndex],
+            previewUrl: freshPreviewUrl,
+            lastSaved: savedAt
+          };
+          updatedFiles[existingFileIndex] = updatedFile;
+          
+          // Trigger selection for the updated file immediately
+          selectArtifact(updatedFile);
+          return updatedFiles;
+        } else {
+          // If for some reason it's a new file (e.g. Save As), add it to top
+          const newFile = {
+            filename: savedFilename,
+            type: savedFilename.split('.').pop().toUpperCase(),
+            url: getFileUrl(savedFilename),
+            previewUrl: freshPreviewUrl,
+            isOutput: true,
+            createdAt: new Date().toISOString(),
+            lastSaved: savedAt
+          };
+          
+          // Trigger selection for the new file
+          selectArtifact(newFile);
+          return [newFile, ...prev];
+        }
+      });
+
+      // Trigger RAG re-indexing for the saved file
+      if (ragAvailable) {
+        indexDocumentForRag(savedFilename);
+      }
+
+      // Clear the navigation state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname, ragAvailable, selectArtifact, indexDocumentForRag]);
+
   // Session handlers
-  const handleNewChat = async () => {
+  const handleNewChat = useCallback(async () => {
     const newId = await createNewSession();
     setProcessCards([]);
     setUploadedFiles([]);
@@ -321,7 +433,31 @@ function ChatPage() {
     setRightSidebarCollapsed(true);
     setRagIndexedDocuments(false);
     setRagIndexing(false);
-  };
+  }, [createNewSession, sessionId]);
+
+  // Handle new chat request from Navigation State (forceNew)
+  const resetTriggered = useRef(false);
+  useEffect(() => {
+    // Check if we came from a link with state={{ forceNew: true }}
+    const shouldForceNew = location.state?.forceNew === true;
+    
+    if (shouldForceNew && !resetTriggered.current) {
+      console.log('Handling forced new chat request...');
+      resetTriggered.current = true;
+      
+      // 1. Perform reset logic
+      handleNewChat();
+      
+      // 2. Clear the location state to prevent re-triggering on refresh
+      // We keep the pathname and search params (like ?skill=docx) intact
+      navigate(location.pathname + location.search, { replace: true, state: {} });
+      
+      // 3. Reset ref after delay
+      setTimeout(() => {
+        resetTriggered.current = false;
+      }, 500);
+    }
+  }, [location.state, location.pathname, location.search, navigate, handleNewChat]);
 
   const handleSelectSession = (selectedId) => {
     if (selectedId === sessionId) return;
@@ -450,6 +586,11 @@ function ChatPage() {
         addArtifacts(newArtifacts);
 
         if (newArtifacts.length > 0) {
+          // Auto-collapse left sidebar when first artifact is created
+          if (!sidebarCollapsed) {
+            setSidebarCollapsed(true);
+          }
+
           const newArtifact = newArtifacts[0];
           const ext = newArtifact.type?.toLowerCase();
 
@@ -481,9 +622,33 @@ function ChatPage() {
           }
         }
       } else {
+        // No new artifacts were created
         if (pendingArtifact) {
           setPendingArtifact(null);
           setAllFiles(prev => prev.filter(f => !f.isPending));
+        }
+
+        // Stop preview loading state
+        setDocumentPreviewLoading(false);
+
+        // Check if this was expected to create a file but didn't
+        // Look for common file operation keywords in the query
+        const queryLower = query.toLowerCase();
+        const isFileOperation = ['create', 'generate', 'make', 'build', 'write', 'add', 'edit', 'modify', 'update'].some(
+          word => queryLower.includes(word)
+        );
+
+        // If it looks like a file operation but no file was created, mark as warning
+        if (isFileOperation && !response.response?.toLowerCase().includes('error')) {
+          setProcessCards(prev => prev.map(card =>
+            card.id === cardId
+              ? {
+                  ...card,
+                  status: 'warning',
+                  finalResult: response.response + '\n\n⚠️ No new document was generated. The operation may have encountered issues. Please try again or rephrase your request.'
+                }
+              : card
+          ));
         }
       }
 
@@ -669,7 +834,12 @@ function ChatPage() {
   useEffect(scrollToBottom, [processCards]);
 
   return (
-    <div className="flex h-screen w-full bg-light-bg overflow-hidden">
+    <div className={`flex h-screen w-full bg-light-bg overflow-hidden ${isResizing ? 'cursor-col-resize' : ''}`}>
+      {/* Global Resize Overlay - Prevents iframe from stealing mouse events */}
+      {isResizing && (
+        <div className="fixed inset-0 z-[9999] cursor-col-resize" />
+      )}
+
       {/* Chat History Sidebar */}
       <ChatHistorySidebar
         sessions={chatHistory}
@@ -682,31 +852,39 @@ function ChatPage() {
       />
 
       {/* Chat Section */}
-      <div className={`flex flex-col h-full border-r border-light-border transition-all duration-300 ${allFiles.length > 0 ? (sidebarCollapsed ? 'w-[38%]' : 'w-[34%]') : 'flex-1'}`}>
-        {/* Enhanced Header with skill indicator and home button */}
-        <div className="h-16 border-b border-light-border flex items-center justify-between px-4 bg-light-bg">
-          <div className="flex items-center gap-3">
+      <div 
+        className={`flex flex-col h-full border-r border-light-border transition-shadow duration-300 ${allFiles.length > 0 ? '' : 'flex-1'} ${isResizing ? 'select-none shadow-[4px_0_15px_rgba(0,0,0,0.05)] z-10' : ''}`}
+        style={{ width: allFiles.length > 0 ? `${chatWidth}px` : 'auto' }}
+      >
+        {/* Header - Home (Left), Logo (Center), New Chat (Right) */}
+        <div className="h-16 border-b border-light-border flex items-center justify-between px-4 bg-light-bg relative">
+          <div className="flex items-center">
             <Link
               to="/"
-              className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-lg transition-all"
+              className="p-2.5 text-brand-accent-500 hover:text-brand-accent-700 hover:bg-brand-accent-50 rounded-xl transition-all border border-transparent hover:border-brand-accent-100 active:scale-95"
               title="Back to Tools"
             >
               <Home className="w-5 h-5" />
             </Link>
-            {skillParam && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-accent-50 rounded-lg border border-brand-accent-200">
-                <span className="text-sm font-medium text-brand-accent-700">
-                  {getSkillDisplayName(skillParam)}
-                </span>
-              </div>
-            )}
           </div>
-          <Header
-            ragAvailable={ragAvailable}
-            ragIndexedDocuments={ragIndexedDocuments}
-            onClearAll={handleClearAll}
-            minimal={true}
-          />
+
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <img
+              src="/logophi_brown.png"
+              alt="Phi"
+              className="h-9 w-9 object-contain"
+            />
+          </div>
+
+          <div className="flex items-center">
+            <button
+              onClick={handleNewChat}
+              className="flex items-center gap-2 px-4 py-2 text-[11px] font-bold text-white bg-brand-accent-600 hover:bg-brand-accent-700 rounded-xl shadow-md shadow-brand-accent-200/40 transition-all active:scale-95 uppercase tracking-wider"
+            >
+              <MessageSquarePlus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">New Chat</span>
+            </button>
+          </div>
         </div>
 
         {/* Hidden file input */}
@@ -731,19 +909,19 @@ function ChatPage() {
           />
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto p-5 space-y-6 custom-scrollbar-dark bg-light-bg">
+            <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar-dark bg-light-bg">
               <AnimatePresence>
                 {processCards.map((card) => (
                   <motion.div
                     key={card.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-4"
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="space-y-6"
                   >
-                    {/* User Message Bubble */}
-                    <div className="flex justify-end px-4">
-                      <div className="bg-light-sidebar border border-light-border px-5 py-3 rounded-2xl rounded-tr-sm text-light-text max-w-2xl shadow-sm">
-                        <p className="whitespace-pre-wrap text-[15px] leading-relaxed">{card.query}</p>
+                    {/* User Message Bubble - Premium Pill */}
+                    <div className="flex justify-end px-2">
+                      <div className="bg-white border border-brand-accent-200/40 px-6 py-4 rounded-[2rem] rounded-tr-lg text-light-text max-w-2xl shadow-[0_4px_15px_rgba(136,108,74,0.05)] transition-shadow hover:shadow-[0_8px_25px_rgba(136,108,74,0.08)]">
+                        <p className="whitespace-pre-wrap text-[15.5px] font-medium leading-[1.6] text-light-text-secondary">{card.query}</p>
                       </div>
                     </div>
 
@@ -788,11 +966,11 @@ function ChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Area */}
-            <div className="border-t border-light-border bg-light-sidebar p-4">
+            {/* Input Area - Recessed Command Center */}
+            <div className="border-t border-brand-accent-100/50 bg-[#f9f7f2] p-6">
               {/* Uploaded Files Row */}
               {uploadedFiles.length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap gap-2 px-2">
                   {uploadedFiles.map((file) => (
                     <FileChip
                       key={file.filename}
@@ -806,78 +984,76 @@ function ChatPage() {
                 </div>
               )}
 
-              {/* Main Input Row */}
-              <form onSubmit={handleSendMessage} className="flex items-center gap-3 bg-light-bg border border-light-border rounded-xl px-3 py-2 focus-within:border-light-border-hover transition-colors">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="p-2 text-brand-accent-500 hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Attach files"
-                >
-                  {isUploading ? (
-                    <RefreshCw className="w-5 h-5 animate-spin" />
+              {/* Main Input Row - Neumorphic/High-end effect */}
+              <form onSubmit={handleSendMessage} className="relative flex flex-col gap-3 bg-white border border-brand-accent-200 shadow-[inset_0_2px_4px_0_rgba(136,108,74,0.03),0_10px_30px_rgba(136,108,74,0.05)] rounded-[1.5rem] p-3 focus-within:border-brand-accent-400 transition-all duration-300">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder={skillParam ? `Execute doc command for ${getSkillDisplayName(skillParam)}...` : "Type a command or ask a question..."}
+                    className="flex-1 px-4 py-3 bg-transparent border-none outline-none text-[15px] text-light-text placeholder-light-text-muted/60 font-medium"
+                    disabled={isProcessing}
+                  />
+
+                  {isProcessing ? (
+                    <button
+                      type="button"
+                      onClick={handleStopGeneration}
+                      className="p-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all active:scale-95 shadow-lg shadow-red-200"
+                      title="Stop Execution"
+                    >
+                      <Square className="w-5 h-5 flex-shrink-0" />
+                    </button>
                   ) : (
-                    <Paperclip className="w-5 h-5" />
+                    <button
+                      type="submit"
+                      disabled={!input.trim()}
+                      className="p-3 bg-brand-accent-600 text-white rounded-xl hover:bg-brand-accent-700 transition-all disabled:opacity-30 disabled:grayscale active:scale-95 shadow-lg shadow-brand-accent-200"
+                      title="Execute Command"
+                    >
+                      <Send className="w-5 h-5 flex-shrink-0" />
+                    </button>
                   )}
-                </button>
+                </div>
 
+                <div className="flex items-center justify-between px-2 pt-1 border-t border-brand-accent-50/50">
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-lg transition-all"
+                    >
+                      {isUploading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Paperclip className="w-3.5 h-3.5" />}
+                      ATTACH_FILES
+                    </button>
 
+                    <div className="w-[1px] h-4 bg-brand-accent-100 mx-1" />
 
-                {/* Connect Menu */}
-                <ConnectMenu
-                  sessionId={sessionId}
-                  connectors={connectors}
-                  connectionStatus={connectionStatus}
-                  activeConnectors={activeConnectors}
-                  onToggleConnector={toggleConnector}
-                  onConnectApp={connectApp}
-                  connectAvailable={connectAvailable}
-                />
+                    <button
+                      type="button"
+                      onClick={() => setWebModeEnabled(!webModeEnabled)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${webModeEnabled
+                        ? 'text-white bg-brand-accent-600 shadow-sm'
+                        : 'text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50'
+                        }`}
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      LIVE_SURF
+                    </button>
+                  </div>
 
-                {/* Web Scraping Button */}
-                <button
-                  type="button"
-                  onClick={() => setWebModeEnabled(!webModeEnabled)}
-                  className={`p-2 rounded-lg transition-all ${webModeEnabled
-                    ? 'text-white bg-gradient-to-r from-blue-500 to-cyan-500 shadow-md hover:from-blue-600 hover:to-cyan-600'
-                    : 'text-light-text-secondary hover:text-light-text hover:bg-white'
-                    }`}
-                  title={webModeEnabled ? "Web mode ON - Will scrape URLs" : "Enable web scraping"}
-                >
-                  <Globe className="w-5 h-5" />
-                </button>
-
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={skillParam ? `Ask about ${getSkillDisplayName(skillParam)}...` : "Reply..."}
-                  className="flex-1 py-2 bg-transparent border-none outline-none text-light-text placeholder-light-text-muted text-sm"
-                  disabled={isProcessing}
-                />
-
-
-
-                {isProcessing ? (
-                  <button
-                    type="button"
-                    onClick={handleStopGeneration}
-                    className="p-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all animate-pulse"
-                    title="Stop generation"
-                  >
-                    <Square className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={!input.trim()}
-                    className="p-2.5 bg-brand-accent-500 text-white rounded-lg hover:bg-brand-accent-600 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    title="Send message"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                )}
+                  <ConnectMenu
+                    sessionId={sessionId}
+                    connectors={connectors}
+                    connectionStatus={connectionStatus}
+                    activeConnectors={activeConnectors}
+                    onToggleConnector={toggleConnector}
+                    onConnectApp={connectApp}
+                    connectAvailable={connectAvailable}
+                  />
+                </div>
               </form>
 
               <div className="text-center mt-2 text-xs text-light-text-muted">
@@ -888,53 +1064,65 @@ function ChatPage() {
         )}
       </div>
 
+      {/* Resize Divider */}
+      {(allFiles.length > 0 || pendingArtifact) && (
+        <div
+          onMouseDown={startResizing}
+          className={`w-3 h-full cursor-col-resize flex-shrink-0 transition-colors z-30 group relative ${
+            isResizing ? 'bg-brand-accent-100/30' : 'bg-transparent hover:bg-brand-accent-50'
+          }`}
+        >
+          {/* Visual Indicator - centered thin line */}
+          <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] transition-colors ${
+            isResizing ? 'bg-brand-accent-600 w-[2px]' : 'bg-brand-accent-200 group-hover:bg-brand-accent-400'
+          }`} />
+          
+          {/* Subtle grabber visual in the middle */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 flex items-center justify-center">
+            <div className={`w-1 h-4 rounded-full ${isResizing ? 'bg-brand-accent-600' : 'bg-brand-accent-100 group-hover:bg-brand-accent-300'}`} />
+          </div>
+        </div>
+      )}
+
       {/* Right Section: Document Viewer + File List */}
       {
         (allFiles.length > 0 || pendingArtifact) && (
           <div className="flex-1 flex h-full bg-light-bg">
             {/* Document Viewer */}
             <div className="flex-1 flex flex-col border-r border-light-border">
-              <div className="h-16 border-b border-light-border flex items-center justify-between px-6 bg-light-bg">
-                <div className="flex items-center gap-3">
-                  <h2 className="font-display font-semibold text-xl text-light-text flex items-center gap-2 tracking-tight">
-                    <FileText className="w-5 h-5 text-brand-accent-500" />
-                    {activeArtifact?.filename || 'Document Preview'}
-                  </h2>
-                  {activeArtifact && (
-                    <div className="flex items-center gap-2 text-xs text-brand-accent-600 bg-brand-accent-50 px-3 py-1 rounded-full">
-                      <Eye className="w-3 h-3" />
-                      Viewing{['pdf', 'docx', 'doc', 'pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
-                        ? (['pptx', 'ppt'].includes(activeArtifact.type?.toLowerCase())
-                          ? ` (Slide ${currentPage})`
-                          : ` (Page ${currentPage})`)
-                        : ''}
-                    </div>
-                  )}
-                </div>
+              <div className="h-16 border-b border-light-border flex items-center justify-end px-6 bg-light-bg">
                 {activeArtifact && !activeArtifact.isPending && activeArtifact.url && (
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => navigate('/editor', { state: { file: activeArtifact } })}
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-brand-accent-600 hover:bg-brand-accent-700 rounded-xl shadow-lg shadow-brand-accent-200/50 transition-all duration-200 uppercase tracking-wider active:scale-95"
+                      title="Open in Workspace Canvas"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-white" />
+                      WORKSPACE_CANVAS
+                    </button>
                     {['docx', 'pptx', 'xlsx', 'pdf'].includes(activeArtifact.type?.toLowerCase()) && (
                       <button
                         onClick={handleEnhanceWithImages}
                         disabled={isEnhancing}
-                        className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200"
+                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-brand-accent-600 hover:bg-brand-accent-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-lg shadow-brand-accent-200/50 transition-all duration-200 uppercase tracking-wider active:scale-95"
                         title="Add AI-generated images to this document"
                       >
                         {isEnhancing ? (
-                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          <Wand2 className="w-4 h-4" />
+                          <Wand2 className="w-3.5 h-3.5" />
                         )}
-                        {isEnhancing ? 'Enhancing...' : 'Enhance with AI'}
+                        {isEnhancing ? 'ENHANCING...' : 'ENHANCE_WITH_AI'}
                       </button>
                     )}
                     <a
                       href={activeArtifact.url}
                       download={activeArtifact.filename}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-light-text bg-white border border-light-border hover:bg-gray-50 rounded-lg transition-all duration-200"
+                      className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-light-text bg-white border border-brand-accent-100 hover:bg-brand-accent-50 hover:border-brand-accent-200 rounded-xl transition-all duration-200 uppercase tracking-wider active:scale-95 shadow-sm"
                     >
-                      <Download className="w-4 h-4" />
-                      Download
+                      <Download className="w-3.5 h-3.5 text-brand-accent-500" />
+                      DOWNLOAD
                     </a>
                   </div>
                 )}
@@ -990,22 +1178,7 @@ function ChatPage() {
               <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                 {rightSidebarCollapsed ? (
                   <div className="flex flex-col items-center gap-1">
-                    {allFiles.map((file, index) => {
-                      const isActive = activeArtifact?.filename === file.filename;
-                      const IconComponent = getFileIcon(file.type);
-                      return (
-                        <button
-                          key={`${file.filename}-${index}`}
-                          onClick={() => selectArtifact(file)}
-                          className={`p-2 rounded-lg transition-colors ${isActive
-                            ? 'bg-light-bg text-brand-accent-500 border border-brand-accent-500/30'
-                            : 'text-light-text-secondary hover:bg-white/50 hover:text-light-text'}`}
-                          title={file.filename}
-                        >
-                          <IconComponent className="w-4 h-4" />
-                        </button>
-                      );
-                    })}
+                    {/* File icons removed for cleaner collapsed state, matching left sidebar */}
                   </div>
                 ) : (
                   allFiles.map((file, index) => {

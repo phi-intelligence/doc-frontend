@@ -1,42 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import LuckyExcel from 'luckyexcel';
+import { Workbook } from '@fortune-sheet/react';
+import "@fortune-sheet/react/dist/index.css";
 import { RefreshCw } from 'lucide-react';
 
 /**
- * Excel file preview component
+ * Excel file preview component using FortuneSheet
  * @param {string} url - Excel file URL
  * @param {Function} onLoadComplete - Callback when loading completes
  */
 const ExcelPreview = ({ url, onLoadComplete }) => {
-  const [data, setData] = useState(null);
+  const [sheetData, setSheetData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchAndParseExcel = async () => {
+      setLoading(true);
+      setError(null);
       try {
         const response = await fetch(url);
-        const arrayBuffer = await response.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        const blob = await response.blob();
+        
+        // Use LuckyExcel to transform the Excel file into FortuneSheet compatible data
+        LuckyExcel.transformExcelToLucky(blob, (exportJson) => {
+          if (exportJson.sheets.length === 0) {
+            setError('No sheets found in this Excel file.');
+            setLoading(false);
+            if (onLoadComplete) onLoadComplete();
+            return;
+          }
+          
+          setSheetData(exportJson.sheets);
+          setLoading(false);
+          if (onLoadComplete) onLoadComplete();
+        }, (err) => {
+          console.error('LuckyExcel transformation failed:', err);
+          setError('Failed to parse Excel file structure.');
+          setLoading(false);
+          if (onLoadComplete) onLoadComplete();
+        });
 
-        // Get first sheet
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-
-        // Convert to JSON (array of arrays for table display)  
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        setData(jsonData);
       } catch (error) {
-        console.error('Error parsing Excel:', error);
-        setData(null);
-      } finally {
+        console.error('Error fetching Excel:', error);
+        setError('Failed to load Excel file.');
         setLoading(false);
-        if (onLoadComplete) {
-          onLoadComplete();
-        }
+        if (onLoadComplete) onLoadComplete();
       }
     };
 
-    fetchAndParseExcel();
+    if (url) {
+      fetchAndParseExcel();
+    }
   }, [url, onLoadComplete]);
 
   if (loading) {
@@ -48,42 +63,33 @@ const ExcelPreview = ({ url, onLoadComplete }) => {
             <div className="absolute inset-0 border-4 border-brand-accent-100 rounded-full"></div>
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-light-text">Loading Excel file...</p>
-            <p className="text-xs text-light-text-secondary mt-1">Parsing spreadsheet data</p>
+            <p className="text-sm font-medium text-light-text">Loading Spreadsheet...</p>
+            <p className="text-xs text-light-text-secondary mt-1">Rendering visualization</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!data || data.length === 0) {
+  if (error) {
+    return <div className="p-4 text-center text-red-500 bg-light-bg">{error}</div>;
+  }
+
+  if (!sheetData) {
     return <div className="p-4 text-center text-light-text-secondary bg-light-bg">No data found</div>;
   }
 
   return (
-    <div className="h-full overflow-auto bg-white p-4 rounded-lg border border-light-border">
-      <table className="min-w-full border-collapse">
-        <thead className="bg-brand-accent-500 sticky top-0">
-          <tr>
-            {data[0].map((header, i) => (
-              <th key={i} className="border border-light-border px-4 py-2.5 text-left font-semibold text-white">
-                {header || `Column ${i + 1}`}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {data.slice(1).map((row, rowIndex) => (
-            <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-              {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="border border-light-border px-4 py-2 text-light-text">
-                  {cell !== undefined && cell !== null ? String(cell) : ''}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="h-full w-full bg-white rounded-lg border border-light-border overflow-hidden">
+      <Workbook 
+        data={sheetData} 
+        readOnly={true}
+        showToolbar={false}
+        showGrid={true}
+        showContextmenu={false}
+        rowHeaderWidth={60}
+        columnHeaderHeight={24}
+      />
     </div>
   );
 };

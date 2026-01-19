@@ -98,6 +98,9 @@ const ToolCard = ({
     );
   }
 
+  // Determine if route needs forceNew state (skill-based routes)
+  const needsForceNew = route && route.includes('?skill=');
+
   // Standard card with category-specific styling
   return (
     <motion.div
@@ -108,6 +111,7 @@ const ToolCard = ({
     >
       <Link
         to={route}
+        state={needsForceNew ? { forceNew: true } : undefined}
         className="group block h-full"
       >
         <div className="relative h-full bg-white border border-light-border rounded-xl p-5 

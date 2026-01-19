@@ -249,7 +249,7 @@ const DocumentPreview = ({
   if (['xlsx', 'xls'].includes(ext)) {
     return (
       <ExcelPreview
-        url={artifact.url}
+        url={previewUrl}
         onLoadComplete={() => safeSetLoading(false)}
       />
     );
@@ -266,7 +266,7 @@ const DocumentPreview = ({
           />
         )}
         <iframe
-          key={`${artifact.filename}-${artifact.createdAt || Date.now()}`}
+          key={`${artifact.filename}-${previewUrl}`}
           src={`${previewUrl}#toolbar=0&navpanes=0&page=${currentPage}`}
           className={`w-full flex-1 border-0 bg-white ${documentPreviewLoading ? 'invisible' : 'visible'}`}
           title="Document Preview"

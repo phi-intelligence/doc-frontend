@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
 // Use relative URLs (same as rest of the app)
-const API_BASE = '';
+const API_BASE = '/api';
 
 // Default connectors list
 const DEFAULT_CONNECTORS = [

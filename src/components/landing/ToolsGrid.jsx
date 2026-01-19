@@ -323,21 +323,12 @@ const CategorySection = ({ category, layout }) => {
 };
 
 const ToolsGrid = () => {
-  const [unified, documents, digitalMarketing, connect] = toolCategories; // Reordered extraction
+  const [unified, documents, digitalMarketing, connect] = toolCategories;
 
   return (
     <div className="space-y-12">
-      {/* Documents - Full Width */}
-      <CategorySection category={documents} />
-
       {/* Digital Marketing - Full Width */}
       <CategorySection category={digitalMarketing} />
-
-      {/* Unified Assistant - Full Width, Featured */}
-      <CategorySection category={unified} />
-
-      {/* Connect - Full Width */}
-      <CategorySection category={connect} />
     </div>
   );
 };

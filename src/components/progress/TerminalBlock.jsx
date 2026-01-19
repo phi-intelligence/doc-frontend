@@ -30,29 +30,33 @@ const TerminalBlock = ({ code, language, title, isStreaming = false }) => {
     }, [isStreaming]);
 
     return (
-        <div className="mt-3 mb-2 rounded-lg overflow-hidden border border-light-border bg-terminal-light shadow-soft font-mono text-sm max-w-full">
+        <div className="mt-4 mb-3 rounded-xl overflow-hidden border border-brand-accent-200 border-t-4 border-t-brand-accent-600 bg-brand-accent-50 shadow-[0_10px_30px_rgba(136,108,74,0.1)] font-mono text-sm max-w-full">
             {/* Terminal Header */}
             <div
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center justify-between px-3 py-2 bg-light-surface border-b border-light-border cursor-pointer hover:bg-light-sidebar transition-colors"
+                className="flex items-center justify-between px-4 py-2.5 bg-brand-accent-600 border-b border-brand-accent-700 cursor-pointer hover:bg-brand-accent-700 transition-colors"
             >
-                <div className="flex items-center gap-2">
-                    <Terminal className="w-3.5 h-3.5 text-brand-accent-500" />
-                    <span className="text-xs font-medium text-light-text font-sans">
+                <div className="flex items-center gap-2.5">
+                    <div className="flex gap-1.5 mr-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-white/20 border border-white/10" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-white/20 border border-white/10" />
+                        <div className="w-2.5 h-2.5 rounded-full bg-white/20 border border-white/10" />
+                    </div>
+                    <Terminal className="w-3.5 h-3.5 text-brand-accent-100" />
+                    <span className="text-[11px] font-bold text-white tracking-wider font-mono uppercase">
                         {title || `Generate ${language || 'Code'}`}
                     </span>
                     {isStreaming && (
-                        <span className="w-1.5 h-3 bg-brand-accent-400 animate-pulse inline-block ml-1" />
+                        <div className="flex items-center gap-1.5 ml-2">
+                            <span className="w-1.5 h-3 bg-white animate-pulse inline-block" />
+                        </div>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {isStreaming && (
-                        <span className="text-[10px] text-brand-accent-500 animate-pulse mr-2">Streaming...</span>
+                        <span className="text-[10px] text-brand-accent-100 font-bold animate-pulse">STREAMING_PROCESS</span>
                     )}
-                    <span className="text-[10px] text-light-text-muted font-sans">
-                        {isExpanded ? 'Hide' : 'Show Code'}
-                    </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-light-text-muted transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-brand-accent-100 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
             </div>
 
@@ -63,21 +67,21 @@ const TerminalBlock = ({ code, language, title, isStreaming = false }) => {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
+                        transition={{ duration: 0.3, ease: "circOut" }}
                     >
-                        <div className="relative p-3 overflow-x-auto max-h-[300px] overflow-y-auto custom-scrollbar-thin" ref={codeRef}>
+                        <div className="relative p-5 overflow-x-auto max-h-[450px] overflow-y-auto custom-scrollbar-light" ref={codeRef}>
                             {/* Copy Button */}
                             <button
                                 onClick={handleCopy}
-                                className="absolute top-2 right-2 p-1.5 rounded bg-light-sidebar hover:bg-light-border text-light-text-secondary hover:text-light-text transition-all z-10"
+                                className="absolute top-3 right-3 p-2 rounded-lg bg-brand-accent-100/50 hover:bg-brand-accent-200/50 text-brand-accent-600 transition-all z-10 border border-brand-accent-200"
                                 title="Copy code"
                             >
-                                {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
+                                {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                             </button>
 
-                            <pre className="text-xs leading-relaxed text-light-text font-mono code-block whitespace-pre-wrap break-all">
+                            <pre className="text-xs leading-relaxed text-brand-accent-900 font-mono whitespace-pre-wrap break-all selection:bg-brand-accent-200">
                                 {code}
-                                {isStreaming && <span className="inline-block w-2 h-4 align-text-bottom bg-brand-accent-300 animate-pulse ml-0.5" />}
+                                {isStreaming && <span className="inline-block w-2 h-4 align-text-bottom bg-brand-accent-500 animate-pulse ml-1" />}
                             </pre>
                         </div>
                     </motion.div>

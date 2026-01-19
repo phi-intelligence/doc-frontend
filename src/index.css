@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -21,16 +23,36 @@
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-track {
-  background: #FAF9F6;
+  background: #F1EDE4;
   border-radius: 4px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb {
-  background: #D4CFC5;
+  background: #D8D1C5;
   border-radius: 4px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
+  background: #C8BFB0;
+}
+
+/* Custom scrollbar for beige terminal */
+.custom-scrollbar-light::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-track {
+  background: #F3EDE5;
+  border-radius: 3px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-thumb {
+  background: #D4C4A8;
+  border-radius: 3px;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar-thumb:hover {
   background: #B8A07A;
 }
 

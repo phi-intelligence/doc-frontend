@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     CheckCircle2,
     Circle,
@@ -33,18 +34,22 @@ const StepItem = ({ item, isLast }) => {
             return <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0" />;
         }
         if (item.status === 'complete') {
-            return <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0" />;
+            return (
+                <div className="w-4 h-4 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 border border-green-500/20">
+                    <CheckCircle2 className="w-3 h-3 text-green-600" />
+                </div>
+            );
         }
         if (item.status === 'running') {
             return <Loader2 className="w-4 h-4 text-brand-accent-500 animate-spin flex-shrink-0" />;
         }
         // Pending/queued
-        return <Circle className="w-4 h-4 text-gray-300 flex-shrink-0" />;
+        return <Circle className="w-4 h-4 text-gray-200 flex-shrink-0" />;
     };
 
     const getTypeIcon = () => {
-        if (item.type === 'thought') return <Cpu className="w-3.5 h-3.5 text-purple-500" />;
-        if (item.type === 'code_start') return <Terminal className="w-3.5 h-3.5 text-gray-500" />;
+        if (item.type === 'thought') return <Cpu className="w-3.5 h-3.5 text-brand-accent-600" />;
+        if (item.type === 'code_start') return <Terminal className="w-3.5 h-3.5 text-gray-400" />;
         if (item.type === 'file_created') return <FileText className="w-3.5 h-3.5 text-blue-500" />;
         return null;
     };
@@ -59,110 +64,137 @@ const StepItem = ({ item, isLast }) => {
     };
 
     return (
-        <div className="group">
+        <div className="group relative">
+            {!isLast && (
+                <div className="absolute left-[7px] top-8 bottom-0 w-[1px] bg-brand-accent-100" />
+            )}
+
             {/* Main Step Row - Claude-style flat list */}
             <div
-                className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-colors ${hasExpandableContent ? 'cursor-pointer hover:bg-light-surface' : ''
-                    } ${item.status === 'running' ? 'bg-brand-accent-50/50' : ''}`}
+                className={`flex items-start gap-4 py-3 px-3 rounded-xl transition-all duration-200 ${hasExpandableContent ? 'cursor-pointer hover:bg-brand-accent-50/50' : ''
+                    } ${item.status === 'running' ? 'bg-brand-accent-50/30' : ''}`}
                 onClick={toggleExpand}
             >
                 {/* Status Icon */}
-                {getIcon()}
+                <div className="mt-0.5">
+                    {getIcon()}
+                </div>
 
-                {/* Type Icon (optional) */}
-                {getTypeIcon() && (
-                    <div className="flex-shrink-0">
-                        {getTypeIcon()}
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                        {/* Type Icon (optional) */}
+                        {getTypeIcon() && (
+                            <div className="px-1.5 py-0.5 rounded-md bg-white border border-brand-accent-100 flex-shrink-0 shadow-sm">
+                                {getTypeIcon()}
+                            </div>
+                        )}
+                        <span className={`text-[13px] leading-tight ${item.status === 'running' ? 'text-light-text font-bold' : 'text-light-text-secondary font-medium'
+                            }`}>
+                            {item.title || item.message || "Initializing system..."}
+                        </span>
                     </div>
-                )}
 
-                {/* Step Text */}
-                <span className={`flex-1 text-sm truncate ${item.status === 'running' ? 'text-light-text font-medium' : 'text-light-text-secondary'
-                    }`}>
-                    {item.title || item.message || "Processing..."}
-                </span>
+                    {/* Sub-info line */}
+                    <div className="flex items-center gap-3">
+                        {item.filename && (
+                            <span className="text-[11px] text-brand-accent-600 font-bold font-mono tracking-tighter truncate max-w-[200px] flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-brand-accent-300" />
+                                {item.filename}
+                            </span>
+                        )}
 
-                {/* Filename (right side, like Claude) */}
-                {item.filename && (
-                    <span className="text-xs text-light-text-muted font-mono truncate max-w-[150px]">
-                        {item.filename}
-                    </span>
-                )}
-
-                {/* Duration badge */}
-                {item.duration && item.duration > 0.5 && item.status === 'complete' && (
-                    <span className="text-xs text-light-text-muted">
-                        {item.duration.toFixed(1)}s
-                    </span>
-                )}
+                        {item.duration && item.duration > 0.5 && item.status === 'complete' && (
+                            <span className="text-[10px] text-light-text-muted font-bold tracking-wider">
+                                {item.duration.toFixed(1)}s_EXEC
+                            </span>
+                        )}
+                    </div>
+                </div>
 
                 {/* Expand indicator */}
                 {hasExpandableContent && (
-                    <div className="text-light-text-muted">
-                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                    <div className="mt-1 text-light-text-muted">
+                        <ChevronRight className={`w-4 h-4 transition-transform duration-300 ${isExpanded ? 'rotate-90' : ''}`} />
                     </div>
                 )}
             </div>
 
             {/* Expandable Content */}
-            {isExpanded && hasExpandableContent && (
-                <div className="ml-7 mt-2 mb-3">
-                    {/* Substeps */}
-                    {item.children && item.children.length > 0 && (
-                        <ul className="space-y-1 mb-3">
-                            {item.children.map((child, idx) => (
-                                <li key={idx} className="flex items-center gap-2 text-xs text-light-text-secondary py-1">
-                                    <span className="w-1 h-1 rounded-full bg-light-text-muted" />
-                                    {child.title}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-
-                    {/* Thought/Reasoning Block */}
-                    {item.type === 'thought' && (item.output || item.content) && (
-                        <div className="p-3 bg-purple-50 rounded-lg text-sm text-purple-900 border border-purple-100">
-                            <div className="text-[10px] uppercase tracking-wider text-purple-500 font-semibold mb-1">
-                                Reasoning
+            <AnimatePresence>
+                {isExpanded && hasExpandableContent && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="ml-11 mt-1 mb-4"
+                    >
+                        {/* Substeps */}
+                        {item.children && item.children.length > 0 && (
+                            <div className="space-y-1.5 mb-4 pl-3 border-l-2 border-brand-accent-100/50">
+                                {item.children.map((child, idx) => (
+                                    <div key={idx} className="flex items-center gap-2.5 text-xs text-light-text-secondary py-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-200" />
+                                        <span className="font-medium">{child.title}</span>
+                                    </div>
+                                ))}
                             </div>
-                            <div className="whitespace-pre-wrap text-xs leading-relaxed">
-                                {item.output || item.content}
-                            </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Code Block - Use existing TerminalBlock */}
-                    {item.type === 'code_start' && (
-                        <TerminalBlock
-                            code={item.output || item.command || ""}
-                            language={item.language || "javascript"}
-                            title={item.description || `Generating ${item.language || 'code'}...`}
-                            isStreaming={item.status === 'running'}
-                        />
-                    )}
-
-                    {/* File Created Card */}
-                    {item.type === 'file_created' && (
-                        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                            <div className="p-2 bg-blue-100 rounded-md">
-                                <FileText className="w-4 h-4 text-blue-600" />
+                        {/* Thought/Reasoning Block */}
+                        {item.type === 'thought' && (item.output || item.content) && (
+                            <div className="p-4 bg-brand-accent-100 rounded-xl text-brand-accent-900 border border-brand-accent-200 shadow-sm overflow-hidden relative group/thought">
+                                <div className="absolute top-0 right-0 p-3 opacity-10 pointer-events-none text-brand-accent-400">
+                                    <Cpu className="w-12 h-12" />
+                                </div>
+                                <div className="text-[10px] uppercase font-bold tracking-[0.2em] text-brand-accent-600 mb-3 flex items-center gap-2">
+                                    <Sparkles className="w-3 h-3" />
+                                    Analysis Engine
+                                </div>
+                                <div className="whitespace-pre-wrap text-[12px] leading-relaxed font-mono custom-scrollbar-light max-h-[250px] overflow-y-auto pr-2 relative z-10">
+                                    {item.output || item.content}
+                                </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-blue-900 truncate">{item.filename}</p>
-                                <p className="text-xs text-blue-600">{item.file_type || 'Document'}</p>
-                            </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Error Message */}
-                    {item.error && (
-                        <div className="p-3 bg-red-50 text-red-800 text-xs rounded-lg border border-red-100">
-                            <p className="font-semibold mb-1">Error:</p>
-                            <p className="font-mono whitespace-pre-wrap">{item.error}</p>
-                        </div>
-                    )}
-                </div>
-            )}
+                        {/* Code Block - Use existing TerminalBlock */}
+                        {item.type === 'code_start' && (
+                            <TerminalBlock
+                                code={item.output || item.command || ""}
+                                language={item.language || "javascript"}
+                                title={item.description || `Generating ${item.language || 'code'}...`}
+                                isStreaming={item.status === 'running'}
+                            />
+                        )}
+
+                        {/* File Created Card */}
+                        {item.type === 'file_created' && (
+                            <div className="flex items-center gap-4 p-4 bg-white border border-blue-100 rounded-xl shadow-sm group/file">
+                                <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100 group-hover:bg-blue-600 group-hover:border-blue-700 transition-all duration-300">
+                                    <FileText className="w-6 h-6 text-blue-600 group-hover:text-white transition-colors" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[10px] uppercase font-bold tracking-widest text-blue-500 mb-0.5">Artifact Ready</div>
+                                    <p className="text-sm font-bold text-light-text truncate">{item.filename}</p>
+                                    <p className="text-[11px] font-medium text-light-text-muted">{item.file_type || 'Document Container'}</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Error Message */}
+                        {item.error && (
+                            <div className="p-4 bg-red-50 text-red-900 text-xs rounded-xl border border-red-200">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <AlertCircle className="w-4 h-4 text-red-600" />
+                                    <span className="font-bold uppercase tracking-wider">System Halt</span>
+                                </div>
+                                <div className="font-mono bg-white/40 p-3 rounded-lg border border-red-200/50 whitespace-pre-wrap">
+                                    {item.error}
+                                </div>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

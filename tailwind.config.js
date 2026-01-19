@@ -7,18 +7,18 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Main backgrounds - warm cream/off-white
-                'light-bg': '#FAF9F6',
+                // Main backgrounds - richer vintage paper tones
+                'light-bg': '#F1EDE4',
                 'light-surface': '#FFFFFF',
-                'light-sidebar': '#F5F3EE',
+                'light-sidebar': '#E7E2D8',
 
-                // Borders - warm gray
-                'light-border': '#E8E4DD',
-                'light-border-hover': '#D4CFC5',
+                // Borders - deeper muted stone
+                'light-border': '#D8D1C5',
+                'light-border-hover': '#C8BFB0',
 
                 // Text colors
-                'light-text': '#1A1A1A',
-                'light-text-secondary': '#6B6B6B',
+                'light-text': '#2A2118',
+                'light-text-secondary': '#5C4830',
                 'light-text-muted': '#8B8680',
 
                 // Terminal/code backgrounds
@@ -58,7 +58,7 @@ export default {
                 sans: ['"Inter"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
                 serif: ['"Playfair Display"', 'Georgia', 'serif'],
                 display: ['"Inter"', 'system-ui', 'sans-serif'],
-                mono: ['"JetBrains Mono"', 'Fira Code', 'monospace'],
+                mono: ['"IBM Plex Mono"', '"JetBrains Mono"', 'Fira Code', 'monospace'],
             },
             letterSpacing: {
                 tighter: '-0.02em',
