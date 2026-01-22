@@ -31,6 +31,7 @@ import WelcomeScreen from '../features/chat/components/WelcomeScreen';
 import ProcessCard from '../components/progress/ProcessCard';
 import EnhancementCard from '../features/artifacts/components/EnhancementCard';
 import FileChip from '../components/common/FileChip';
+import FileThumbnail from '../components/common/FileThumbnail';
 import DocumentPreview from '../components/preview/DocumentPreview';
 import ConnectMenu from '../components/connect/ConnectMenu';
 
@@ -126,9 +127,9 @@ function ChatPage() {
   const [chatWidth, setChatWidth] = useState(() => {
     const saved = localStorage.getItem('chat_width');
     if (saved) return parseInt(saved);
-    
+
     // Default to a generous 65% split of remaining space
-    const sidebarWidth = 224; 
+    const sidebarWidth = 224;
     const rightSidebarWidth = 208;
     const available = window.innerWidth - sidebarWidth - rightSidebarWidth;
     return Math.floor(available * 0.65);
@@ -219,13 +220,13 @@ function ChatPage() {
       const sidebarWidth = sidebarCollapsed ? 48 : 224;
       const rightSidebarWidth = rightSidebarCollapsed ? 48 : 208;
       const newWidth = e.clientX - sidebarWidth;
-      
+
       // Relaxed Constraints for better compatibility
       const minChatWidth = 400;
       const minDocWidth = 300;
       const availableSpace = window.innerWidth - sidebarWidth - rightSidebarWidth;
       const maxChatWidth = Math.max(minChatWidth, availableSpace - minDocWidth);
-      
+
       if (newWidth >= minChatWidth && newWidth <= maxChatWidth) {
         setChatWidth(newWidth);
       }
@@ -368,6 +369,7 @@ function ChatPage() {
 
   // Handle returning from editor with saved file
   useEffect(() => {
+    // Case 1: Returning with saved file (needs RAG re-indexing)
     if (location.state?.savedFile && location.state?.savedAt) {
       const savedFilename = location.state.savedFile;
       const savedAt = location.state.savedAt;
@@ -378,7 +380,7 @@ function ChatPage() {
       // 1. Update file list (refresh existing or add new)
       setAllFiles(prev => {
         const existingFileIndex = prev.findIndex(f => f.filename === savedFilename);
-        
+
         if (existingFileIndex >= 0) {
           // Refresh existing file metadata
           const updatedFiles = [...prev];
@@ -388,7 +390,7 @@ function ChatPage() {
             lastSaved: savedAt
           };
           updatedFiles[existingFileIndex] = updatedFile;
-          
+
           // Trigger selection for the updated file immediately
           selectArtifact(updatedFile);
           return updatedFiles;
@@ -403,7 +405,7 @@ function ChatPage() {
             createdAt: new Date().toISOString(),
             lastSaved: savedAt
           };
-          
+
           // Trigger selection for the new file
           selectArtifact(newFile);
           return [newFile, ...prev];
@@ -414,6 +416,24 @@ function ChatPage() {
       if (ragAvailable) {
         indexDocumentForRag(savedFilename);
       }
+
+      // Clear the navigation state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+    // Case 2: Returning without save (just auto-select the file)
+    else if (location.state?.returnedFile) {
+      const returnedFilename = location.state.returnedFile;
+      console.log('Returning from editor (no save), auto-selecting:', returnedFilename);
+
+      // Find and select the file with fresh preview URL
+      setAllFiles(prev => {
+        const existingFile = prev.find(f => f.filename === returnedFilename);
+        if (existingFile) {
+          const freshFile = { ...existingFile, previewUrl: getPreviewUrl(returnedFilename) };
+          selectArtifact(freshFile);
+        }
+        return prev;
+      });
 
       // Clear the navigation state to prevent re-triggering
       navigate(location.pathname, { replace: true, state: {} });
@@ -440,18 +460,18 @@ function ChatPage() {
   useEffect(() => {
     // Check if we came from a link with state={{ forceNew: true }}
     const shouldForceNew = location.state?.forceNew === true;
-    
+
     if (shouldForceNew && !resetTriggered.current) {
       console.log('Handling forced new chat request...');
       resetTriggered.current = true;
-      
+
       // 1. Perform reset logic
       handleNewChat();
-      
+
       // 2. Clear the location state to prevent re-triggering on refresh
       // We keep the pathname and search params (like ?skill=docx) intact
       navigate(location.pathname + location.search, { replace: true, state: {} });
-      
+
       // 3. Reset ref after delay
       setTimeout(() => {
         resetTriggered.current = false;
@@ -529,8 +549,14 @@ function ChatPage() {
 
     const contextFiles = [
       ...uploadedFiles.map(f => f.filename),
-      ...outputArtifacts.slice(-3).map(f => f.filename)
+      ...outputArtifacts.slice(-10).map(f => f.filename)  // Expanded from 3 to 10 for better document awareness
     ];
+
+    // Clear uploaded files from input area after they're included in the prompt
+    // They've been "sent" with the message, so thumbnails should disappear
+    if (uploadedFiles.length > 0) {
+      setUploadedFiles([]);
+    }
 
     const cardId = `card-${Date.now()}`;
     setCurrentCardId(cardId);
@@ -562,12 +588,50 @@ function ChatPage() {
         urls,        // NEW: Web URLs
         webModeEnabled  // NEW: Web mode flag
       );
+      // Build file details message for chat response
+      const fileDetailsMessage = response.new_artifacts?.length > 0
+        ? `\n\n**Created Files:**\n${response.new_artifacts.map(f => `- \`${f}\``).join('\n')}`
+        : '';
 
-      setProcessCards(prev => prev.map(card =>
-        card.id === cardId
-          ? { ...card, finalResult: response.response, status: 'completed' }
-          : card
-      ));
+      // Add execution complete step and append file details to response
+      // IMPORTANT: Use the card's accumulated steps (which were synced during processing)
+      // and merge with any new progressStream items to avoid missing steps
+      setProcessCards(prev => prev.map(card => {
+        if (card.id !== cardId) return card;
+
+        // Get existing steps from the card (accumulated during processing)
+        const existingSteps = card.steps || [];
+
+        // Get any new items from progressStream that aren't already in steps
+        const existingIds = new Set(existingSteps.map(s => s.id));
+        const newProgressItems = progressStream.items.filter(item => !existingIds.has(item.id));
+
+        // Merge existing steps with any new items
+        const allSteps = [...existingSteps, ...newProgressItems];
+
+        // Add execution complete step if files were created
+        const finalSteps = response.new_artifacts?.length > 0
+          ? [
+            ...allSteps,
+            {
+              id: 'exec-complete-' + Date.now(),
+              type: 'step_complete',
+              title: `Execution Complete - ${response.new_artifacts.length} file(s) created`,
+              message: `Successfully generated: ${response.new_artifacts.join(', ')}`,
+              status: 'complete',
+              duration: 0
+            }
+          ]
+          : allSteps;
+
+        return {
+          ...card,
+          steps: finalSteps,
+          finalResult: response.response + fileDetailsMessage,
+          status: 'completed',
+          isCollapsed: true  // Auto-collapse after completion - user can expand to view steps
+        };
+      }));
 
       if (response.new_artifacts && response.new_artifacts.length > 0) {
         const newArtifacts = response.new_artifacts.map(filename => ({
@@ -643,10 +707,10 @@ function ChatPage() {
           setProcessCards(prev => prev.map(card =>
             card.id === cardId
               ? {
-                  ...card,
-                  status: 'warning',
-                  finalResult: response.response + '\n\n⚠️ No new document was generated. The operation may have encountered issues. Please try again or rephrase your request.'
-                }
+                ...card,
+                status: 'warning',
+                finalResult: response.response + '\n\n⚠️ No new document was generated. The operation may have encountered issues. Please try again or rephrase your request.'
+              }
               : card
           ));
         }
@@ -685,9 +749,11 @@ function ChatPage() {
 
     if (results.successful.length > 0) {
       const newFiles = results.successful;
-      setUploadedFiles(prev => [...prev, ...newFiles]);
+      // Note: uploadFilesHandler already adds to uploadedFiles in useFiles hook
+      // Only add to allFiles for sidebar display
       setAllFiles(prev => [...newFiles, ...prev]);
-      selectArtifact(newFiles[0]);
+      // Don't auto-select uploaded files - let user prompt first
+      // Document viewer will show when output artifacts are created
 
       const successMsg = newFiles.length === 1
         ? `Uploaded: ${newFiles[0].filename}`
@@ -695,9 +761,8 @@ function ChatPage() {
 
       setMessages(prev => [...prev, { role: 'system', text: successMsg }]);
 
-      if (ragAvailable) {
-        newFiles.forEach(file => indexDocumentForRag(file.filename));
-      }
+      // Don't index to RAG immediately - let user modify files first
+      // RAG indexing will happen when user sends a prompt (backend handles via context_files)
     }
 
     if (results.errors.length > 0) {
@@ -852,7 +917,7 @@ function ChatPage() {
       />
 
       {/* Chat Section */}
-      <div 
+      <div
         className={`flex flex-col h-full border-r border-light-border transition-shadow duration-300 ${allFiles.length > 0 ? '' : 'flex-1'} ${isResizing ? 'select-none shadow-[4px_0_15px_rgba(0,0,0,0.05)] z-10' : ''}`}
         style={{ width: allFiles.length > 0 ? `${chatWidth}px` : 'auto' }}
       >
@@ -968,16 +1033,13 @@ function ChatPage() {
 
             {/* Input Area - Recessed Command Center */}
             <div className="border-t border-brand-accent-100/50 bg-[#f9f7f2] p-6">
-              {/* Uploaded Files Row */}
+              {/* Uploaded Files Row - Thumbnail Cards */}
               {uploadedFiles.length > 0 && (
-                <div className="mb-4 flex flex-wrap gap-2 px-2">
+                <div className="mb-4 flex flex-wrap gap-3 px-2">
                   {uploadedFiles.map((file) => (
-                    <FileChip
+                    <FileThumbnail
                       key={file.filename}
                       file={file}
-                      isUpload={true}
-                      isActive={false}
-                      onClick={() => { }}
                       onRemove={() => handleRemoveFile(file, true)}
                     />
                   ))}
@@ -1068,15 +1130,13 @@ function ChatPage() {
       {(allFiles.length > 0 || pendingArtifact) && (
         <div
           onMouseDown={startResizing}
-          className={`w-3 h-full cursor-col-resize flex-shrink-0 transition-colors z-30 group relative ${
-            isResizing ? 'bg-brand-accent-100/30' : 'bg-transparent hover:bg-brand-accent-50'
-          }`}
+          className={`w-3 h-full cursor-col-resize flex-shrink-0 transition-colors z-30 group relative ${isResizing ? 'bg-brand-accent-100/30' : 'bg-transparent hover:bg-brand-accent-50'
+            }`}
         >
           {/* Visual Indicator - centered thin line */}
-          <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] transition-colors ${
-            isResizing ? 'bg-brand-accent-600 w-[2px]' : 'bg-brand-accent-200 group-hover:bg-brand-accent-400'
-          }`} />
-          
+          <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] transition-colors ${isResizing ? 'bg-brand-accent-600 w-[2px]' : 'bg-brand-accent-200 group-hover:bg-brand-accent-400'
+            }`} />
+
           {/* Subtle grabber visual in the middle */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 flex items-center justify-center">
             <div className={`w-1 h-4 rounded-full ${isResizing ? 'bg-brand-accent-600' : 'bg-brand-accent-100 group-hover:bg-brand-accent-300'}`} />
@@ -1196,7 +1256,11 @@ function ChatPage() {
                           ? 'bg-light-bg border-brand-accent-500/30'
                           : 'bg-transparent border-transparent hover:bg-white/50 hover:border-light-border'
                           }`}
-                        onClick={() => selectArtifact(file)}
+                        onClick={() => {
+                          // Refresh preview URL to ensure latest content is shown after editor return
+                          const freshFile = { ...file, previewUrl: getPreviewUrl(file.filename) };
+                          selectArtifact(freshFile);
+                        }}
                       >
                         <div className="flex items-center gap-2">
                           <div className={`p-1 rounded ${isActive ? 'bg-brand-accent-500/10' : 'bg-white'}`}>

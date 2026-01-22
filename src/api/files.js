@@ -10,7 +10,7 @@ import { API_BASE } from '../utils/constants';
 export const uploadFile = async (file, sessionId) => {
   const formData = new FormData();
   formData.append('file', file);
-  
+
   const response = await apiClient.post(`/upload?session_id=${sessionId}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
@@ -32,10 +32,10 @@ export const uploadFiles = async (files, sessionId) => {
       const result = await uploadFile(file, sessionId);
       results.push({ success: true, file, result });
     } catch (error) {
-      results.push({ 
-        success: false, 
-        file, 
-        error: error.response?.data?.detail || error.message 
+      results.push({
+        success: false,
+        file,
+        error: error.response?.data?.detail || error.message
       });
     }
   }

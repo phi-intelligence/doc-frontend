@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import ToolCard from './ToolCard';
 import {
   FileText, Table, FileImage, Presentation, Image, Code, ScanLine,
-  Camera, Palette, Sparkles, User, Link2, MessagesSquare, BarChart3
+  Sparkles, Link2, MessagesSquare, BarChart3
 } from 'lucide-react';
 
 // Tool definitions organized by new category structure
@@ -187,47 +187,11 @@ const toolCategories = [
       {
         id: 'frontend-design',
         title: 'Frontend Design',
-        description: 'Create React components, web interfaces, and modern UI layouts.',
+        description: 'Create landing pages, web interfaces, and modern UI layouts.',
         icon: Code,
-        route: '/chat?skill=frontend-design',
+        route: '/chat?skill=web-artifacts-builder',
         isExternal: false,
-        tags: ['React', 'Web', 'Components']
-      },
-      {
-        id: 'design-generation',
-        title: 'Design Generation',
-        description: 'Create logos, text-on-image designs, and professional brand assets.',
-        icon: Palette,
-        route: '/design-generation',
-        isExternal: true,
-        tags: ['Logos', 'Branding', 'Assets']
-      },
-      {
-        id: 'product-photography',
-        title: 'Product Photography',
-        description: 'Flat lay, ghost mannequin effects, and professional product staging.',
-        icon: Camera,
-        route: '/product-photography',
-        isExternal: true,
-        tags: ['E-commerce', 'Staging', 'Enhancement']
-      },
-      {
-        id: 'content-generation',
-        title: 'Content Creation',
-        description: 'Generate engaging social media posts and marketing content.',
-        icon: Sparkles,
-        route: '/content-generation',
-        isExternal: true,
-        tags: ['Social', 'Marketing', 'Copy']
-      },
-      {
-        id: 'virtual-model',
-        title: 'Virtual Model',
-        description: 'Virtual try-on experiences and realistic product visualization.',
-        icon: User,
-        route: '/virtual-model',
-        isExternal: true,
-        tags: ['Try-on', 'Fashion', 'AR']
+        tags: ['HTML', 'Web', 'Landing Pages']
       }
     ]
   },
@@ -254,6 +218,8 @@ const toolCategories = [
 
 
 const CategorySection = ({ category, layout }) => {
+  if (!category) return null;
+  
   // Special layout for Unified Assistant (featured)
   if (category.featured) {
     return (
@@ -264,7 +230,7 @@ const CategorySection = ({ category, layout }) => {
         className="mb-16"
       >
         <div className="max-w-4xl mx-auto">
-          {category.tools.map(tool => (
+          {category.tools && category.tools.map(tool => (
             <ToolCard
               key={tool.id}
               {...tool}
@@ -298,15 +264,17 @@ const CategorySection = ({ category, layout }) => {
           <h2 className="text-2xl font-bold text-light-text">
             {category.title}
           </h2>
-          <p className="text-sm text-light-text-secondary">
-            {category.description}
-          </p>
+          {category.description && (
+            <p className="text-sm text-light-text-secondary">
+              {category.description}
+            </p>
+          )}
         </div>
       </div>
 
       {/* Tools Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {category.tools.map((tool, index) => (
+        {category.tools && category.tools.map((tool, index) => (
           <ToolCard
             key={tool.id}
             {...tool}
@@ -323,12 +291,12 @@ const CategorySection = ({ category, layout }) => {
 };
 
 const ToolsGrid = () => {
-  const [unified, documents, digitalMarketing, connect] = toolCategories;
+  const connectCategory = toolCategories.find(c => c.id === 'connect');
 
   return (
     <div className="space-y-12">
-      {/* Digital Marketing - Full Width */}
-      <CategorySection category={digitalMarketing} />
+      {/* ToolsGrid now primarily handles App Connectors and other secondary tools */}
+      <CategorySection category={connectCategory} />
     </div>
   );
 };

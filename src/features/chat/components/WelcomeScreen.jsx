@@ -39,11 +39,11 @@ const skillSuggestions = {
     { icon: Image, label: "Illustration", prompt: "Generate an illustration for a blog post about AI." },
     { icon: Image, label: "Logo Concept", prompt: "Create logo concept ideas for a coffee shop." },
   ],
-  'frontend-design': [
-    { icon: Code, label: "Landing Page", prompt: "Create a React landing page component for a SaaS product." },
-    { icon: Code, label: "Dashboard", prompt: "Build a dashboard component with charts and metrics." },
-    { icon: Code, label: "Form Component", prompt: "Create a multi-step form component with validation." },
-    { icon: Code, label: "Card Grid", prompt: "Design a responsive card grid for a portfolio site." },
+  'web-artifacts-builder': [
+    { icon: Code, label: "Landing Page", prompt: "Create a modern landing page for a SaaS product with hero, features, and CTA sections." },
+    { icon: Code, label: "Dashboard", prompt: "Build a dashboard with charts and metrics for a business analytics app." },
+    { icon: Code, label: "Portfolio", prompt: "Create a portfolio website with project gallery and contact form." },
+    { icon: Code, label: "Game", prompt: "Build an interactive browser game with animations." },
   ],
   'handwritten-ocr': [
     { icon: ScanLine, label: "Extract Notes", prompt: "Extract text from my handwritten meeting notes." },
@@ -113,7 +113,7 @@ const skillInfo = {
   pptx: { name: 'Presentations', subtitle: 'Design slides and pitch decks' },
   pdf: { name: 'PDF Processing', subtitle: 'Create, edit, and extract from PDFs' },
   imagegen: { name: 'Image Generation', subtitle: 'Create AI-generated images' },
-  'frontend-design': { name: 'Frontend Design', subtitle: 'Generate React components and UI' },
+  'web-artifacts-builder': { name: 'Web Design', subtitle: 'Create landing pages and web applications' },
   'handwritten-ocr': { name: 'Handwritten OCR', subtitle: 'Extract text from handwritten content' },
   default: { name: 'Phi Docs', subtitle: 'What would you like to create today?' }
 };
@@ -242,7 +242,7 @@ const WelcomeScreen = ({
 
         {/* Central Input - Recessed Command Center (Unified Style) */}
         <div className="w-full max-w-3xl relative mb-12">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-3 bg-white border border-brand-accent-200 shadow-[inset_0_2px_4px_0_rgba(136,108,74,0.03),0_20px_40px_rgba(136,108,74,0.08)] rounded-[2rem] p-3 focus-within:border-brand-accent-400 transition-all duration-300">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3 bg-light-sidebar border border-brand-accent-200 shadow-[inset_0_2px_4px_0_rgba(136,108,74,0.03),0_20px_40px_rgba(136,108,74,0.08)] rounded-[2rem] p-3 focus-within:border-brand-accent-400 transition-all duration-300">
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -324,7 +324,7 @@ const WelcomeScreen = ({
               <button
                 key={idx}
                 onClick={() => onSend(item.prompt)}
-                className="flex flex-col items-start p-5 bg-white border border-brand-accent-100/50 rounded-2xl hover:border-brand-accent-400 transition-all group hover:shadow-[0_10px_30px_rgba(136,108,74,0.08)] active:scale-[0.98] text-left relative overflow-hidden"
+                className="flex flex-col items-start p-5 bg-light-sidebar border border-brand-accent-100/50 rounded-2xl hover:border-brand-accent-400 transition-all group hover:shadow-[0_10px_30px_rgba(136,108,74,0.08)] active:scale-[0.98] text-left relative overflow-hidden"
               >
                 <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Send className="w-3 h-3 text-brand-accent-400" />
@@ -368,7 +368,7 @@ const WelcomeScreen = ({
                     key={category.id}
                     onClick={() => setSelectedCategory(category.id)}
                     className={`px-4 py-2 text-[11px] font-bold transition-all whitespace-nowrap rounded-lg uppercase tracking-wider ${selectedCategory === category.id
-                      ? 'bg-white text-brand-accent-700 shadow-sm border border-brand-accent-100'
+                      ? 'bg-brand-accent-500 text-white shadow-sm border border-brand-accent-600'
                       : 'text-light-text-secondary hover:text-brand-accent-600'
                       }`}
                   >
@@ -380,7 +380,7 @@ const WelcomeScreen = ({
 
             {/* Template Grid - Responsive & Polished */}
             {loadingTemplates ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white/30 rounded-[2rem] border border-dashed border-brand-accent-200">
+              <div className="flex flex-col items-center justify-center py-20 bg-brand-accent-50/50 rounded-[2rem] border border-dashed border-brand-accent-200">
                 <RefreshCw className="w-8 h-8 animate-spin text-brand-accent-400 mb-4" />
                 <span className="text-xs font-bold text-brand-accent-600 tracking-widest uppercase">Initializing_Library...</span>
               </div>
@@ -389,7 +389,7 @@ const WelcomeScreen = ({
                 {/* Blank Option - First */}
                 <button
                   onClick={() => setSelectedTemplate(null)}
-                  className="flex flex-col items-center justify-center p-5 bg-white border border-brand-accent-100 rounded-[1.5rem] hover:border-brand-accent-400 transition-all group hover:shadow-xl active:scale-95"
+                  className="flex flex-col items-center justify-center p-5 bg-light-sidebar border border-brand-accent-100 rounded-[1.5rem] hover:border-brand-accent-400 transition-all group hover:shadow-xl active:scale-95"
                 >
                   <div className="w-full aspect-[3/4] bg-brand-accent-50/30 rounded-xl flex flex-col items-center justify-center mb-4 border border-dashed border-brand-accent-200 group-hover:bg-brand-accent-50 transition-colors">
                     <div className="w-12 h-16 border-2 border-brand-accent-200 rounded relative overflow-hidden group-hover:border-brand-accent-400 transition-colors">
@@ -412,7 +412,7 @@ const WelcomeScreen = ({
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 bg-white/30 rounded-[2rem] border border-dashed border-brand-accent-200">
+              <div className="text-center py-20 bg-brand-accent-50/50 rounded-[2rem] border border-dashed border-brand-accent-200">
                 <FileText className="w-12 h-12 mx-auto mb-4 text-brand-accent-200 opacity-50" />
                 <p className="text-sm font-bold text-brand-accent-600 uppercase tracking-widest leading-relaxed"> No archetypes found <br /> in this domain </p>
               </div>

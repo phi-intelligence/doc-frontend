@@ -48,7 +48,11 @@ export const useArtifacts = () => {
       const ext = activeArtifact.type?.toLowerCase();
       if (['mermaid', 'jsx', 'js', 'html', 'md', 'txt', 'json'].includes(ext)) {
         setPreviewLoading(true);
-        apiClient.get(activeArtifact.url)
+        // Strip /api prefix from URL since apiClient already has baseURL '/api'
+        const relativeUrl = activeArtifact.url.startsWith('/api')
+          ? activeArtifact.url.slice(4)
+          : activeArtifact.url;
+        apiClient.get(relativeUrl)
           .then(res => {
             setArtifactContent(typeof res.data === 'string' ? res.data : JSON.stringify(res.data, null, 2));
           })

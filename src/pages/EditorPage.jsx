@@ -75,7 +75,8 @@ const EditorPage = () => {
             setShowExitDialog(true);
             setPendingNavigation('/chat');
         } else {
-            navigate('/chat');
+            // Navigate back with file info so ChatPage can auto-select it
+            navigate('/chat', { state: { returnedFile: file?.filename } });
         }
     }, [isModified, navigate]);
 
@@ -96,8 +97,9 @@ const EditorPage = () => {
 
     const handleExitWithoutSave = useCallback(() => {
         setShowExitDialog(false);
-        navigate(pendingNavigation || '/chat');
-    }, [navigate, pendingNavigation]);
+        // Pass file info so ChatPage can auto-select it (even without save)
+        navigate(pendingNavigation || '/chat', { state: { returnedFile: file?.filename } });
+    }, [navigate, pendingNavigation, file]);
 
     const handleCancelExit = useCallback(() => {
         setShowExitDialog(false);
@@ -194,8 +196,8 @@ const EditorPage = () => {
                         onClick={handleSave}
                         disabled={isSaving || !isModified}
                         className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all border active:scale-95 group ${isModified
-                                ? 'bg-brand-accent-500 text-white border-brand-accent-600 hover:bg-brand-accent-600 shadow-md'
-                                : 'text-light-text-secondary border-brand-accent-100 hover:border-brand-accent-200 bg-brand-accent-50/50'
+                            ? 'bg-brand-accent-500 text-white border-brand-accent-600 hover:bg-brand-accent-600 shadow-md'
+                            : 'text-light-text-secondary border-brand-accent-100 hover:border-brand-accent-200 bg-brand-accent-50/50'
                             } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {isSaving ? (
@@ -313,14 +315,12 @@ const EditorPage = () => {
             {/* Toast Notification */}
             {showToast && (
                 <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-4 fade-in duration-300`}>
-                    <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border ${
-                        saveStatus === 'success'
+                    <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border ${saveStatus === 'success'
                             ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 text-green-700'
                             : 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200 text-red-700'
-                    }`}>
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            saveStatus === 'success' ? 'bg-green-100' : 'bg-red-100'
                         }`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${saveStatus === 'success' ? 'bg-green-100' : 'bg-red-100'
+                            }`}>
                             {saveStatus === 'success' ? (
                                 <CheckCircle className="w-5 h-5 text-green-600" />
                             ) : (

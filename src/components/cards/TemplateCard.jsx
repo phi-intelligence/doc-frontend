@@ -11,13 +11,13 @@ const TemplateCard = ({ template, isSelected, onClick }) => {
     return (
         <button
             onClick={onClick}
-            className={`flex flex-col bg-white rounded-xl overflow-hidden transition-all hover:shadow-lg ${isSelected
-                    ? 'border-2 border-brand-accent-600 ring-2 ring-brand-accent-200'
-                    : 'border-2 border-transparent hover:border-brand-accent-300'
+            className={`flex flex-col bg-light-sidebar rounded-xl overflow-hidden transition-all hover:shadow-lg ${isSelected
+                ? 'border-2 border-brand-accent-600 ring-2 ring-brand-accent-200'
+                : 'border-2 border-transparent hover:border-brand-accent-300'
                 }`}
         >
             {/* Thumbnail Preview */}
-            <div className="relative w-full aspect-[3/4] bg-slate-100 overflow-hidden">
+            <div className="relative w-full aspect-[3/4] bg-light-bg overflow-hidden">
                 {template.thumbnail_url ? (
                     <img
                         src={template.thumbnail_url}

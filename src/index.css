@@ -100,7 +100,7 @@
 }
 
 .btn-secondary {
-  @apply btn-base bg-white text-light-text border border-light-border hover:border-light-border-hover hover:bg-light-bg;
+  @apply btn-base bg-light-sidebar text-light-text border border-light-border hover:border-light-border-hover hover:bg-light-bg;
 }
 
 .btn-ghost {
@@ -109,14 +109,14 @@
 
 /* Input base styles */
 .input-base {
-  @apply w-full px-4 py-3 bg-white border border-light-border rounded-lg text-light-text placeholder-light-text-muted;
+  @apply w-full px-4 py-3 bg-light-sidebar border border-light-border rounded-lg text-light-text placeholder-light-text-muted;
   @apply focus:outline-none focus:ring-2 focus:ring-brand-accent-100 focus:border-brand-accent-300;
   @apply transition-all duration-200;
 }
 
 /* Card styles */
 .card {
-  @apply bg-white border border-light-border rounded-xl;
+  @apply bg-light-sidebar border border-light-border rounded-xl;
 }
 
 .card-hover {

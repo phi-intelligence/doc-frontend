@@ -22,7 +22,8 @@ const StepItem = ({ item, isLast }) => {
         item.type === 'code_start' || item.type === 'thought' || item.status === 'running'
     );
 
-    // Auto-expand when running, collapse when done (unless has content to show)
+    // Auto-expand when running, but don't auto-collapse - let user control collapse
+    // TerminalBlock handles its own code content collapse
     useEffect(() => {
         if (item.status === 'running') {
             setIsExpanded(true);
