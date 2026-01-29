@@ -1,6 +1,9 @@
 import axios from 'axios';
 import { API_BASE } from '../utils/constants';
 
+// Same key as AuthContext so api client stays in sync with auth state
+const AUTH_TOKEN_KEY = 'phidocs_auth_token';
+
 // Create axios instance with default configuration
 const apiClient = axios.create({
   baseURL: API_BASE,
@@ -10,10 +13,13 @@ const apiClient = axios.create({
   }
 });
 
-// Request interceptor
+// Request interceptor: add Authorization header when token is present (production org context)
 apiClient.interceptors.request.use(
   (config) => {
-    // Add any auth tokens or headers here if needed
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {

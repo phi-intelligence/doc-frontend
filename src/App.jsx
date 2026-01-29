@@ -48,6 +48,7 @@ function App() {
         {/* Demo Sections */}
         <Route path="/demo/hr" element={<Navigate to="/app/hr/editor" replace />} />
         <Route path="/demo/finance" element={<Navigate to="/app/finance/editor" replace />} />
+        <Route path="/demo/legal" element={<Navigate to="/app/legal/editor" replace />} />
 
         {/* Company App (protected) */}
         <Route

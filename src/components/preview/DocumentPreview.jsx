@@ -15,6 +15,8 @@ import { getFileIcon } from '../../utils/fileUtils';
  * @param {boolean} documentPreviewLoading - Loading state for document preview
  * @param {Function} setDocumentPreviewLoading - Function to update loading state
  * @param {boolean} previewLoading - Loading state for text previews
+ * @param {boolean} [videoLoadError] - Optional controlled loading video error state (ChatPage/editor parity)
+ * @param {Function} [setVideoLoadError] - Optional setter for loading video error state
  */
 const DocumentPreview = ({
   artifact,
@@ -24,10 +26,14 @@ const DocumentPreview = ({
   totalPages = null,
   documentPreviewLoading = false,
   setDocumentPreviewLoading,
-  previewLoading = false
+  previewLoading = false,
+  videoLoadError: videoLoadErrorProp,
+  setVideoLoadError: setVideoLoadErrorProp
 }) => {
   const videoRef = useRef(null);
-  const [videoLoadError, setVideoLoadError] = useState(false);
+  const [videoLoadErrorInternal, setVideoLoadErrorInternal] = useState(false);
+  const videoLoadError = videoLoadErrorProp !== undefined ? videoLoadErrorProp : videoLoadErrorInternal;
+  const setVideoLoadError = typeof setVideoLoadErrorProp === 'function' ? setVideoLoadErrorProp : setVideoLoadErrorInternal;
 
   // Safe wrapper to handle undefined setDocumentPreviewLoading
   const safeSetLoading = (value) => {

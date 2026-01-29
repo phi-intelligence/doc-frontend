@@ -9,6 +9,7 @@ import { useProgressStream } from '../../../hooks/useProgressStream';
 import { useConnect } from '../../../hooks/useConnect';
 import { sendMessage } from '../../../api/chat';
 import { getFileUrl, getPreviewUrl, clearArtifacts, clearUploads, enhanceWithImages } from '../../../api/files';
+import { getRAGStatus, indexDocument as indexDocumentForRag } from '../../../api/rag';
 import { saveSessionData, loadSessionData, deleteSessionData, getStorageItem, setStorageItem } from '../../../utils/storage';
 import { STORAGE_KEYS } from '../../../utils/constants';
 import { listSkills } from '../../../api/skills';
@@ -75,7 +76,7 @@ const UnifiedSectionEditor = ({
   const [enhancementCards, setEnhancementCards] = useState([]);
   
   // States and Hooks (reusing logic from HRIntegrationPage)
-  const { uploadedFiles, isUploading, uploadFiles: uploadFilesHandler, removeFile, clearFiles } = useFiles(sessionId);
+  const { uploadedFiles, isUploading, uploadFiles: uploadFilesHandler, removeFile, clearFiles, setUploadedFiles } = useFiles(sessionId);
   const {
     outputArtifacts,
     addArtifacts,
@@ -89,6 +90,8 @@ const UnifiedSectionEditor = ({
     documentPreviewLoading,
     setDocumentPreviewLoading,
     previewLoading,
+    videoLoadError,
+    setVideoLoadError,
     setOutputArtifacts,
     setActiveArtifact
   } = useArtifacts();
@@ -140,6 +143,11 @@ const UnifiedSectionEditor = ({
   });
   const [pendingArtifact, setPendingArtifact] = useState(null);
 
+  // RAG state (ChatPage parity)
+  const [ragAvailable, setRagAvailable] = useState(false);
+  const [ragIndexedDocuments, setRagIndexedDocuments] = useState(false);
+  const [ragIndexing, setRagIndexing] = useState(false);
+
   // Connect integrations (ChatPage parity)
   const {
     connectors,
@@ -150,6 +158,22 @@ const UnifiedSectionEditor = ({
     connectApp,
     getIntegrations
   } = useConnect(sessionId);
+
+  // RAG status check (ChatPage parity)
+  const checkRagStatus = useCallback(async () => {
+    try {
+      const status = await getRAGStatus(sessionId);
+      setRagAvailable(status.available || false);
+      setRagIndexedDocuments(status.has_indexed_documents || false);
+    } catch {
+      setRagAvailable(false);
+      setRagIndexedDocuments(false);
+    }
+  }, [sessionId]);
+
+  useEffect(() => {
+    checkRagStatus();
+  }, [checkRagStatus]);
 
   // Handle returning from /editor with saved/returned file (ChatPage parity)
   useEffect(() => {
@@ -180,6 +204,15 @@ const UnifiedSectionEditor = ({
         return [newFile, ...prev];
       });
 
+      // Trigger RAG re-indexing for the saved file (ChatPage parity)
+      if (ragAvailable && savedFilename) {
+        setRagIndexing(true);
+        indexDocumentForRag(savedFilename, sessionId)
+          .then(() => setRagIndexedDocuments(true))
+          .catch((err) => console.error('Failed to index document for RAG:', err))
+          .finally(() => setRagIndexing(false));
+      }
+
       navigate(location.pathname + location.search, { replace: true, state: {} });
     } else if (location.state?.returnedFile) {
       const returnedFilename = location.state.returnedFile;
@@ -193,7 +226,7 @@ const UnifiedSectionEditor = ({
       });
       navigate(location.pathname + location.search, { replace: true, state: {} });
     }
-  }, [location.state, location.pathname, location.search, navigate, selectArtifact, setAllFiles]);
+  }, [location.state, location.pathname, location.search, navigate, selectArtifact, setAllFiles, ragAvailable, sessionId]);
   
   // Resize state
   const leftWidthKey = `unified_editor_${sectionKey}_left_width`;
@@ -315,11 +348,13 @@ const UnifiedSectionEditor = ({
         setProcessCards(sessionData.processCards);
       }
       if (sessionData?.allFiles?.length > 0) {
-        setAllFiles(sessionData.allFiles.map((f) => ({
+        const normalized = sessionData.allFiles.map((f) => ({
           ...f,
           url: f.url?.startsWith('/api') ? f.url : getFileUrl(f.filename),
           previewUrl: f.previewUrl || getPreviewUrl(f.filename)
-        })));
+        }));
+        setAllFiles(normalized);
+        setOutputArtifacts(normalized.filter((f) => f.isOutput));
       }
     }
   }, [sessionId]);
@@ -552,6 +587,11 @@ const UnifiedSectionEditor = ({
     try {
       const fileNames = contextFiles || [...pinnedFiles.map(f => f.filename), ...uploadedFiles.map(f => f.filename)];
 
+      // Clear uploaded files after including in prompt (ChatPage parity)
+      if (uploadedFiles.length > 0 && setUploadedFiles) {
+        setUploadedFiles([]);
+      }
+
       // Extract URLs if web mode enabled (ChatPage parity)
       let urls = [];
       if (webModeEnabled && message) {
@@ -649,6 +689,15 @@ const UnifiedSectionEditor = ({
         }
 
         setPendingArtifact(null);
+
+        // Index new artifacts for RAG when available (ChatPage parity)
+        if (ragAvailable && newArtifactFilenames.length > 0) {
+          setRagIndexing(true);
+          Promise.all(newArtifactFilenames.map((fn) => indexDocumentForRag(fn, sessionId)))
+            .then(() => setRagIndexedDocuments(true))
+            .catch((err) => console.error('Failed to index documents for RAG:', err))
+            .finally(() => setRagIndexing(false));
+        }
       } else {
         if (pendingArtifact) {
           setPendingArtifact(null);
@@ -709,7 +758,9 @@ const UnifiedSectionEditor = ({
     setDocumentPreviewLoading,
     progressStream,
     pendingArtifact,
-    sectionKey
+    sectionKey,
+    setUploadedFiles,
+    ragAvailable
   ]);
 
   // Retry handler (must be declared after handleSendMessage to avoid TDZ at runtime)
@@ -1058,15 +1109,25 @@ const UnifiedSectionEditor = ({
           onSelectSession={(selectedId) => {
             if (selectedId === sessionId) return;
             const sessionData = selectSessionHandler(selectedId);
+            const loadedFiles = sessionData?.allFiles || [];
             setProcessCards(sessionData?.processCards || []);
-            setAllFiles(sessionData?.allFiles || []);
+            setAllFiles(loadedFiles);
             setPinnedFiles([]);
-            setOutputArtifacts([]);
-            setActiveArtifact(sessionData?.allFiles?.[0] || null);
+            setOutputArtifacts(loadedFiles.filter((f) => f.isOutput));
+            setActiveArtifact(loadedFiles[0] || null);
             setChatMessages([]);
           }}
           onDeleteSession={async (deleteId) => {
+            const wasCurrentSession = deleteId === sessionId;
             await deleteSessionHandler(deleteId);
+            if (wasCurrentSession) {
+              setProcessCards([]);
+              setAllFiles([]);
+              setPinnedFiles([]);
+              setOutputArtifacts([]);
+              setActiveArtifact(null);
+              setChatMessages([]);
+            }
           }}
           isCollapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
@@ -1104,6 +1165,8 @@ const UnifiedSectionEditor = ({
             documentPreviewLoading={documentPreviewLoading}
             setDocumentPreviewLoading={setDocumentPreviewLoading}
             previewLoading={previewLoading}
+            videoLoadError={videoLoadError}
+            setVideoLoadError={setVideoLoadError}
             onPreview={selectArtifact}
             onDownload={(doc) => window.open(getFileUrl(doc.filename))}
             onRemoveFile={handleRemoveFile}
