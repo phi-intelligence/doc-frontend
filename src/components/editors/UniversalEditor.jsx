@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { Layout, X, Save, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import apiClient from '../../api';
 
 /**
  * UniversalEditor - Collabora Online integration component
@@ -27,7 +29,7 @@ const UniversalEditor = forwardRef(({ file, isFullScreen, onClose, onModifiedCha
         isSaving: () => isSaving
     }), [isModified, isSaving]);
 
-    // Fetch WOPI URL on file change
+    // Fetch WOPI URL on file change - using apiClient for authenticated requests
     useEffect(() => {
         if (!file?.filename) return;
 
@@ -35,18 +37,14 @@ const UniversalEditor = forwardRef(({ file, isFullScreen, onClose, onModifiedCha
         setError(null);
         setIsModified(false);
 
-        fetch(`/api/wopi/url/${file.filename}`)
-            .then(res => {
-                if (!res.ok) throw new Error("Failed to initialize editor session");
-                return res.json();
-            })
-            .then(data => {
-                setWopiUrl(data.url);
+        apiClient.get(`/wopi/url/${file.filename}`)
+            .then(response => {
+                setWopiUrl(response.data.url);
                 setLoading(false);
             })
             .catch(err => {
                 console.error("WOPI URL Fetch failed", err);
-                setError(err.message);
+                setError(err.response?.data?.detail || err.message || "Failed to initialize editor session");
                 setLoading(false);
             });
 
@@ -148,18 +146,12 @@ const UniversalEditor = forwardRef(({ file, isFullScreen, onClose, onModifiedCha
         if (!file?.filename) return;
 
         try {
-            const response = await fetch(`/api/wopi/notify-save/${file.filename}`, {
-                method: 'POST',
+            const response = await apiClient.post(`/wopi/notify-save/${file.filename}`, null, {
                 headers: {
-                    'Content-Type': 'application/json',
                     'X-Session-Id': sessionId || ''
                 }
             });
-
-            if (response.ok) {
-                const result = await response.json();
-                console.log('Backend notified of save:', result);
-            }
+            console.log('Backend notified of save:', response.data);
         } catch (e) {
             console.error('Failed to notify backend of save:', e);
         }
@@ -230,22 +222,37 @@ const UniversalEditor = forwardRef(({ file, isFullScreen, onClose, onModifiedCha
             {/* Main Editor Area */}
             <div className="flex-1 flex flex-col h-full relative z-0">
                 {loading ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-12">
-                        <div className="relative mb-8">
-                            <div className="absolute inset-0 bg-brand-accent-200/20 rounded-full blur-2xl animate-pulse" />
-                            <div className="relative bg-white p-6 rounded-3xl shadow-xl border border-brand-accent-100 animate-bounce">
-                                <Layout className="w-10 h-10 text-brand-accent-600" />
-                            </div>
+                    <div className="flex-1 flex flex-col items-center justify-center p-12 bg-[#FAFAF9]">
+                        <div className="relative mb-10">
+                            <motion.div 
+                                animate={{ 
+                                    scale: [1, 1.1, 1],
+                                    opacity: [0.3, 0.6, 0.3]
+                                }}
+                                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                                className="absolute inset-0 bg-brand-accent-200/30 rounded-full blur-3xl" 
+                            />
+                            <motion.div 
+                                animate={{ y: [0, -10, 0] }}
+                                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                                className="relative bg-white p-8 rounded-[2.5rem] shadow-2xl border border-brand-accent-100/50"
+                            >
+                                <Layout className="w-12 h-12 text-brand-accent-600" />
+                            </motion.div>
                         </div>
-                        <h3 className="text-xl font-bold text-light-text mb-2 tracking-tight">INITIALIZING_ENGINE</h3>
-                        <p className="text-xs font-bold text-brand-accent-400 tracking-[0.2em] uppercase">Connecting to Secure Sandbox...</p>
+                        <h3 className="text-2xl font-black text-light-text mb-2 tracking-tighter uppercase">INITIALIZING_CANVAS</h3>
+                        <p className="text-[10px] font-black text-brand-accent-500 tracking-[0.4em] uppercase opacity-70">Establishing Secure Sandbox Protocol</p>
 
-                        <div className="mt-8 flex gap-1">
+                        <div className="mt-12 flex gap-2">
                             {[0, 1, 2].map((i) => (
-                                <div
+                                <motion.div
                                     key={i}
-                                    className="w-1.5 h-1.5 rounded-full bg-brand-accent-300 animate-pulse"
-                                    style={{ animationDelay: `${i * 0.2}s` }}
+                                    animate={{ 
+                                        scale: [1, 1.5, 1],
+                                        opacity: [0.3, 1, 0.3]
+                                    }}
+                                    transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                                    className="w-2 h-2 rounded-full bg-brand-accent-400"
                                 />
                             ))}
                         </div>
@@ -263,14 +270,21 @@ const UniversalEditor = forwardRef(({ file, isFullScreen, onClose, onModifiedCha
                     </div>
                 ) : (
                     <div className="flex-1 w-full h-full bg-white relative">
-                        {/* Saving Overlay */}
+                        {/* Saving Overlay - Refined & Aesthetic */}
                         {isSaving && (
-                            <div className="absolute inset-0 bg-white/80 z-10 flex items-center justify-center">
-                                <div className="flex items-center gap-3 px-6 py-3 bg-brand-accent-50 rounded-xl border border-brand-accent-200">
-                                    <div className="w-5 h-5 border-2 border-brand-accent-500 border-t-transparent rounded-full animate-spin" />
-                                    <span className="text-sm font-bold text-brand-accent-600">Saving changes...</span>
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-10 flex items-center justify-center"
+                            >
+                                <div className="flex items-center gap-4 px-8 py-4 bg-white rounded-2xl shadow-2xl border border-brand-accent-100/50">
+                                    <div className="w-6 h-6 border-3 border-brand-accent-600 border-t-transparent rounded-full animate-spin" />
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-black text-light-text tracking-tight">SYNCHRONIZING</span>
+                                        <span className="text-[10px] font-bold text-brand-accent-500 tracking-widest uppercase">Safe Workspace Sync...</span>
+                                    </div>
                                 </div>
-                            </div>
+                            </motion.div>
                         )}
 
                         {/* Collabora Iframe */}

@@ -4,6 +4,7 @@ import UniversalEditor from '../components/editors/UniversalEditor';
 import { useSession } from '../hooks/useSession';
 import { getFileUrl } from '../api/files';
 import { ChevronRight, X, Save, AlertTriangle, CheckCircle, Download } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 /**
  * EditorPage - Full-screen document editing workspace
@@ -21,7 +22,7 @@ const EditorPage = () => {
     const editorRef = useRef(null);
 
     // Get file from location state
-    const [file, setFile] = useState(location.state?.file || null);
+    const [file] = useState(location.state?.file || null);
     const returnTo = location.state?.returnTo || '/chat';
 
     // Document state
@@ -141,106 +142,126 @@ const EditorPage = () => {
     }
 
     return (
-        <div className="h-screen w-screen overflow-hidden bg-light-bg flex flex-col">
-            {/* Premium Editor Header */}
-            <header className="h-16 border-b border-brand-accent-100/50 bg-white flex items-center justify-between px-6 z-30 shadow-sm">
-                <div className="flex items-center gap-4">
-                    <img src="/logophi_brown.png" alt="Phi" className="w-8 h-8 object-contain" />
+        <div className="h-screen w-screen overflow-hidden bg-light-bg flex flex-col selection:bg-brand-accent-100 selection:text-brand-accent-900">
+            {/* Premium Editor Header - Refined with floating feel */}
+            <header className="h-16 border-b border-light-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 z-30 shrink-0 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-brand-accent-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent-100/50">
+                            <img src="/logophi_brown.png" alt="Phi" className="w-6 h-6 object-contain brightness-0 invert" />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-black text-light-text tracking-tighter leading-none">PHI <span className="text-brand-accent-600">DOCS</span></span>
+                            <span className="text-[8px] font-bold text-light-text-secondary tracking-[0.2em] uppercase leading-none mt-1">CANVAS</span>
+                        </div>
+                    </div>
 
-                    <div className="w-[1px] h-6 bg-brand-accent-100 mx-2" />
+                    <div className="w-[1px] h-8 bg-light-border" />
 
-                    {/* Breadcrumbs */}
-                    <nav className="flex items-center gap-2 text-[10px] font-bold tracking-[0.15em] uppercase text-light-text-secondary/60">
-                        <span>WORKSPACE</span>
-                        <ChevronRight className="w-3 h-3 text-brand-accent-300" />
-                        <span className="text-brand-accent-500">{file.type?.toUpperCase() || 'DOCUMENT'}</span>
-                        <ChevronRight className="w-3 h-3 text-brand-accent-300" />
-                        <span className="text-light-text tracking-normal normal-case font-bold">{file.filename}</span>
+                    {/* Breadcrumbs - More elegant typography */}
+                    <nav className="flex items-center gap-3">
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-[9px] font-black text-brand-accent-400 uppercase tracking-widest leading-none">WORKSPACE</span>
+                                <ChevronRight className="w-2.5 h-2.5 text-brand-accent-200" />
+                                <span className="text-[9px] font-black text-light-text-secondary uppercase tracking-widest leading-none">{file.type?.toUpperCase() || 'DOCUMENT'}</span>
+                            </div>
+                            <h1 className="text-sm font-bold text-light-text leading-tight tracking-tight max-w-[300px] truncate">{file.filename}</h1>
+                        </div>
                     </nav>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    {/* Save Status Indicator */}
-                    {saveStatus === 'success' && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50/50 rounded-full border border-green-100/50 text-[10px] font-bold text-green-600 tracking-wider animate-pulse">
-                            <CheckCircle className="w-3.5 h-3.5" />
-                            SAVED
-                        </div>
-                    )}
-                    {saveStatus === 'error' && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50/50 rounded-full border border-red-100/50 text-[10px] font-bold text-red-600 tracking-wider">
-                            <AlertTriangle className="w-3.5 h-3.5" />
-                            SAVE_FAILED
-                        </div>
-                    )}
-
-                    {/* Modified Indicator */}
-                    {isModified && !saveStatus && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/50 rounded-full border border-amber-100/50 text-[10px] font-bold text-amber-600 tracking-wider">
-                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            UNSAVED_CHANGES
-                        </div>
-                    )}
-
-                    {/* Cloud Sync Status */}
-                    {!isModified && !saveStatus && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50/50 rounded-full border border-green-100/50 text-[10px] font-bold text-green-600 tracking-wider">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                            CLOUD_SYNCED
-                        </div>
-                    )}
-
-                    <div className="w-[1px] h-6 bg-brand-accent-100" />
-
-                    {/* Save Button */}
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving || !isModified}
-                        className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all border active:scale-95 group ${isModified
-                            ? 'bg-brand-accent-500 text-white border-brand-accent-600 hover:bg-brand-accent-600 shadow-md'
-                            : 'text-light-text-secondary border-brand-accent-100 hover:border-brand-accent-200 bg-brand-accent-50/50'
-                            } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        {isSaving ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                                SAVING...
-                            </>
-                        ) : (
-                            <>
-                                <Save className="w-4 h-4" />
-                                SAVE
-                            </>
+                    {/* Status Indicators Group */}
+                    <div className="flex items-center gap-2 mr-2">
+                        {saveStatus === 'success' && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full border border-green-100 text-[10px] font-bold text-green-600 tracking-wider shadow-sm"
+                            >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                SAVED
+                            </motion.div>
                         )}
-                    </button>
+                        {saveStatus === 'error' && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="flex items-center gap-2 px-3 py-1.5 bg-red-50 rounded-full border border-red-100 text-[10px] font-bold text-red-600 tracking-wider shadow-sm"
+                            >
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                SAVE_FAILED
+                            </motion.div>
+                        )}
 
-                    {/* Download Button */}
-                    <a
-                        href={getFileUrl(file.filename)}
-                        download={file.filename}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-light-text bg-white border border-brand-accent-100 hover:bg-brand-accent-50 hover:border-brand-accent-200 rounded-xl transition-all active:scale-95 shadow-sm"
-                        title="Download document"
-                    >
-                        <Download className="w-4 h-4 text-brand-accent-500" />
-                        DOWNLOAD
-                    </a>
+                        {isModified && !saveStatus && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-accent-50 rounded-full border border-brand-accent-100 text-[10px] font-bold text-brand-accent-600 tracking-wider shadow-sm">
+                                <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-500 animate-pulse" />
+                                PENDING_CHANGES
+                            </div>
+                        )}
 
-                    <div className="w-[1px] h-6 bg-brand-accent-100" />
+                        {!isModified && !saveStatus && (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-light-bg rounded-full border border-light-border text-[10px] font-bold text-light-text-secondary tracking-wider opacity-60">
+                                <CheckCircle className="w-3.5 h-3.5 opacity-40" />
+                                UP_TO_DATE
+                            </div>
+                        )}
+                    </div>
 
-                    {/* Exit Button */}
+                    <div className="w-[1px] h-8 bg-light-border" />
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving || !isModified}
+                            className={`flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl transition-all border active:scale-95 group shadow-sm ${isModified
+                                ? 'bg-brand-accent-600 text-white border-brand-accent-700 hover:bg-brand-accent-700 hover:shadow-brand-accent-100'
+                                : 'text-light-text-secondary border-light-border bg-white hover:bg-light-bg opacity-50 cursor-not-allowed'
+                                } ${isSaving ? 'opacity-70' : ''}`}
+                        >
+                            {isSaving ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                    <span>SYNCING...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="w-4 h-4" />
+                                    <span>SAVE_CHANGES</span>
+                                </>
+                            )}
+                        </button>
+
+                        <a
+                            href={getFileUrl(file.filename)}
+                            download={file.filename}
+                            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-light-text bg-white border border-light-border hover:bg-light-bg hover:border-brand-accent-200 rounded-xl transition-all active:scale-95 shadow-sm group"
+                            title="Download document"
+                        >
+                            <Download className="w-4 h-4 text-brand-accent-500 group-hover:scale-110 transition-transform" />
+                            <span>EXPORT</span>
+                        </a>
+                    </div>
+
+                    <div className="w-[1px] h-8 bg-light-border" />
+
+                    {/* Exit Button - More discreet but professional */}
                     <button
                         onClick={handleCloseRequest}
-                        className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-light-text hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-xl transition-all border border-transparent hover:border-brand-accent-100 active:scale-95 group"
+                        className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-light-text-secondary hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100 active:scale-95 group"
                     >
                         <X className="w-4 h-4 transition-transform group-hover:rotate-90" />
-                        EXIT_WORKSPACE
+                        <span>CLOSE</span>
                     </button>
                 </div>
             </header>
 
-            {/* Main Editor Canvas */}
-            <main className="flex-1 relative overflow-hidden bg-white">
-                <div className="w-full h-full overflow-hidden relative">
+            {/* Main Editor Canvas - Full screen immersion */}
+            <main className="flex-1 relative overflow-hidden bg-[#FAFAF9]">
+                <div className="w-full h-full overflow-hidden relative shadow-[inset_0_2px_10px_0_rgba(0,0,0,0.02)]">
                     <UniversalEditor
                         ref={editorRef}
                         file={file}
@@ -252,6 +273,18 @@ const EditorPage = () => {
                     />
                 </div>
             </main>
+
+            {/* Modern Floating Status Bar (Optional) */}
+            <div className="absolute bottom-6 right-8 z-20 pointer-events-none">
+                <div className="bg-white/70 backdrop-blur-md border border-light-border rounded-full px-4 py-2 flex items-center gap-4 shadow-xl">
+                   <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-green-500" />
+                      <span className="text-[10px] font-black text-light-text tracking-widest uppercase">Sandboxed Environment</span>
+                   </div>
+                   <div className="w-[1px] h-3 bg-light-border" />
+                   <span className="text-[10px] font-black text-brand-accent-500 tracking-widest uppercase">Port 9980</span>
+                </div>
+            </div>
 
             {/* Exit Confirmation Dialog */}
             {showExitDialog && (

@@ -1,14 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Terminal, ChevronDown, Check, Copy } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+// eslint-disable-next-line no-unused-vars
+import { AnimatePresence, motion } from 'framer-motion';
 
 // Terminal Block Component for Timeline with Live Streaming Support
 const TerminalBlock = ({ code, language, title, isStreaming = false }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+    // Expand by default to show code immediately
+    const [isExpanded, setIsExpanded] = useState(true);
     const [copied, setCopied] = useState(false);
-    const [displayedCode, setDisplayedCode] = useState('');
+    const [revealedLength, setRevealedLength] = useState(0);
     const codeRef = useRef(null);
     const revealIntervalRef = useRef(null);
+    const prevCodeLengthRef = useRef(0);
 
     const handleCopy = (e) => {
         e.stopPropagation();
@@ -17,26 +20,51 @@ const TerminalBlock = ({ code, language, title, isStreaming = false }) => {
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // Typewriter effect: reveal code progressively for readable streaming
+    // Calculate displayed code based on streaming state and revealed length
+    const displayedCode = useMemo(() => {
+        if (!code) return '';
+        if (!isStreaming) return code; // Show full code when not streaming
+        return code.slice(0, Math.min(revealedLength, code.length));
+    }, [code, isStreaming, revealedLength]);
+
+    // Typewriter effect: reveal code progressively during streaming
     useEffect(() => {
-        if (isStreaming && code.length > displayedCode.length) {
+        if (!code || !isStreaming) {
+            // When streaming stops or no code, show full code
+            if (revealIntervalRef.current) {
+                clearInterval(revealIntervalRef.current);
+                revealIntervalRef.current = null;
+            }
+            // Only reset revealed length if code changed while not streaming
+            if (!isStreaming && code) {
+                setRevealedLength(code.length);
+            }
+            return;
+        }
+
+        // New code arrived during streaming
+        if (code.length > prevCodeLengthRef.current) {
             // Clear any existing interval
             if (revealIntervalRef.current) {
                 clearInterval(revealIntervalRef.current);
             }
 
-            // Reveal ~15 chars every 30ms for readable speed
+            // Reveal ~20 chars every 25ms for smooth, readable streaming
             revealIntervalRef.current = setInterval(() => {
-                setDisplayedCode(prev => {
-                    const nextLength = Math.min(prev.length + 15, code.length);
+                setRevealedLength(prev => {
+                    const nextLength = prev + 20;
                     if (nextLength >= code.length) {
                         clearInterval(revealIntervalRef.current);
                         revealIntervalRef.current = null;
+                        prevCodeLengthRef.current = code.length;
+                        return code.length;
                     }
-                    return code.slice(0, nextLength);
+                    return nextLength;
                 });
-            }, 30);
+            }, 25);
         }
+
+        prevCodeLengthRef.current = code.length;
 
         return () => {
             if (revealIntervalRef.current) {
@@ -45,13 +73,6 @@ const TerminalBlock = ({ code, language, title, isStreaming = false }) => {
         };
     }, [code, isStreaming]);
 
-    // When streaming ends, show full code immediately
-    useEffect(() => {
-        if (!isStreaming && code) {
-            setDisplayedCode(code);
-        }
-    }, [isStreaming, code]);
-
     // Auto-scroll to bottom when code grows (streaming)
     useEffect(() => {
         if (isStreaming && codeRef.current && isExpanded) {
@@ -59,15 +80,16 @@ const TerminalBlock = ({ code, language, title, isStreaming = false }) => {
         }
     }, [displayedCode, isStreaming, isExpanded]);
 
-    // Auto-expand when streaming starts
+    // Auto-expand when streaming starts (safety net since we default to expanded)
     useEffect(() => {
         if (isStreaming && !isExpanded) {
             setIsExpanded(true);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isStreaming]);
 
-    // NOTE: No auto-collapse - terminal stays visible after streaming
-    // User can manually click header to collapse if desired
+    // Show cursor when streaming or code is still being revealed
+    const showCursor = isStreaming || (code && displayedCode.length < code.length);
 
     return (
         <div className="mt-4 mb-3 rounded-xl overflow-hidden border border-brand-accent-200 border-t-4 border-t-brand-accent-600 bg-brand-accent-50 shadow-[0_10px_30px_rgba(136,108,74,0.1)] font-mono text-sm max-w-full">
@@ -121,7 +143,7 @@ const TerminalBlock = ({ code, language, title, isStreaming = false }) => {
 
                             <pre className="text-xs leading-relaxed text-brand-accent-900 font-mono whitespace-pre-wrap break-all selection:bg-brand-accent-200">
                                 {displayedCode}
-                                {(isStreaming || displayedCode.length < code.length) && <span className="inline-block w-2 h-4 align-text-bottom bg-brand-accent-500 animate-pulse ml-1" />}
+                                {showCursor && <span className="inline-block w-2 h-4 align-text-bottom bg-brand-accent-500 animate-pulse ml-1" />}
                             </pre>
                         </div>
                     </motion.div>

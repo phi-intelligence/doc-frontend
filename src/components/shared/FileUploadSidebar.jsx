@@ -110,40 +110,47 @@ const FileUploadSidebar = ({
 
   return (
     <div
-      className="w-full h-full bg-light-sidebar border-r border-light-border flex flex-col overflow-hidden"
+      className="w-full h-full bg-white border-r border-light-border flex flex-col overflow-hidden"
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Header */}
-      <div className="p-4 border-b border-light-border">
-        <h3 className="text-lg font-semibold text-light-text mb-2">
-          {demoMode === 'hr' ? 'Upload Employee Documents' : 
-           demoMode === 'finance' ? 'Upload Financial Data' :
-           demoMode === 'legal' ? 'Upload Legal Documents' :
-           'Upload Files'}
+      {/* Header - Refined & Aesthetic */}
+      <div className="p-6 border-b border-light-border bg-white/50 backdrop-blur-sm">
+        <div className="flex items-center gap-2 mb-1">
+           <Upload className="w-4 h-4 text-brand-accent-600" />
+           <span className="text-[10px] font-black text-brand-accent-500 uppercase tracking-widest leading-none">Safe Repository</span>
+        </div>
+        <h3 className="text-sm font-bold text-light-text mb-1 tracking-tight">
+          {demoMode === 'hr' ? 'Employee Intelligence' : 
+           demoMode === 'finance' ? 'Fiscal Documents' :
+           demoMode === 'legal' ? 'Legal Archive' :
+           'Document Ingestion'}
         </h3>
-        <p className="text-xs text-light-text-secondary">
-          Drag & drop or click to upload
+        <p className="text-[10px] font-bold text-light-text-secondary/60 uppercase tracking-widest">
+          Secure Sandbox Upload
         </p>
       </div>
 
       {/* Upload Area */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* Drag & Drop Zone */}
+      <div className="flex-1 overflow-y-auto p-6 custom-scrollbar-thin">
+        {/* Drag & Drop Zone - Aesthetic Polish */}
         <motion.div
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
           className={`
-            border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
-            transition-all duration-200 mb-4
+            border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer
+            transition-all duration-300 mb-8 relative group overflow-hidden
             ${isDragging 
-              ? 'border-brand-accent-500 bg-brand-accent-50' 
-              : 'border-light-border hover:border-brand-accent-300 hover:bg-light-bg'
+              ? 'border-brand-accent-500 bg-brand-accent-50/50 shadow-lg shadow-brand-accent-100/20' 
+              : 'border-light-border bg-[#FAFAF9] hover:border-brand-accent-300 hover:bg-white hover:shadow-xl hover:shadow-black/5'
             }
           `}
           onClick={handleClick}
         >
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          
           <input
             ref={fileInputRef}
             type="file"
@@ -152,31 +159,34 @@ const FileUploadSidebar = ({
             onChange={handleFileInputChange}
             className="hidden"
           />
-          <Upload className={`w-8 h-8 mx-auto mb-3 ${isDragging ? 'text-brand-accent-600' : 'text-light-text-secondary'}`} />
-          <p className="text-sm font-medium text-light-text mb-1">
-            {isDragging ? 'Drop files here' : 'Click or drag files here'}
+          <div className={`w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-all ${isDragging ? 'bg-brand-accent-600 text-white' : 'bg-white text-brand-accent-500 shadow-sm border border-light-border'}`}>
+             <Upload className="w-6 h-6" />
+          </div>
+          <p className="text-sm font-bold text-light-text mb-1 tracking-tight">
+            {isDragging ? 'Release to Upload' : 'Click or Drag Files'}
           </p>
-          <p className="text-xs text-light-text-secondary">
-            {acceptedTypes.join(', ').toUpperCase()}
+          <p className="text-[10px] font-black text-light-text-secondary/40 uppercase tracking-widest">
+            {acceptedTypes.join(' ').toUpperCase()}
           </p>
         </motion.div>
 
         {/* Upload Progress */}
         {isUploading && (
-          <div className="mb-4 p-3 bg-brand-accent-50 border border-brand-accent-200 rounded-lg">
-            <p className="text-xs text-brand-accent-700 font-medium">Uploading files...</p>
+          <div className="mb-6 p-4 bg-brand-accent-600 rounded-2xl shadow-lg shadow-brand-accent-100 flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <p className="text-[11px] text-white font-black uppercase tracking-widest">Encrypting & Ingesting...</p>
           </div>
         )}
 
         {/* File List */}
         {uploadedFiles.length > 0 && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-light-text-secondary">
-                {uploadedFiles.length} file{uploadedFiles.length !== 1 ? 's' : ''}
-              </p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-2 px-1">
+              <span className="text-[10px] font-black text-light-text-secondary uppercase tracking-widest">
+                Ingested Docs ({uploadedFiles.length})
+              </span>
               {uploadedFiles.length >= maxFiles && (
-                <p className="text-xs text-orange-500">Max reached</p>
+                <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Capacity Reached</span>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -194,10 +204,12 @@ const FileUploadSidebar = ({
 
         {/* Empty State */}
         {uploadedFiles.length === 0 && !isUploading && (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="w-12 h-12 text-light-text-secondary/50 mb-3" />
-            <p className="text-sm text-light-text-secondary">
-              No files uploaded yet
+          <div className="flex flex-col items-center justify-center py-20 text-center opacity-40">
+            <div className="w-16 h-16 bg-light-bg rounded-2xl flex items-center justify-center mb-4">
+               <FileText className="w-8 h-8 text-light-text-secondary" />
+            </div>
+            <p className="text-xs font-black text-light-text-secondary uppercase tracking-widest">
+              No files in sandbox
             </p>
           </div>
         )}

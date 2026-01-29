@@ -8,7 +8,7 @@ import { useArtifacts } from '../../../hooks/useArtifacts';
 import { useProgressStream } from '../../../hooks/useProgressStream';
 import { useConnect } from '../../../hooks/useConnect';
 import { sendMessage } from '../../../api/chat';
-import { getFileUrl, getPreviewUrl, clearArtifacts, clearUploads, enhanceWithImages } from '../../../api/files';
+import { getFileUrl, getPreviewUrl, enhanceWithImages } from '../../../api/files';
 import { getRAGStatus, indexDocument as indexDocumentForRag } from '../../../api/rag';
 import { saveSessionData, loadSessionData, deleteSessionData, getStorageItem, setStorageItem } from '../../../utils/storage';
 import { STORAGE_KEYS } from '../../../utils/constants';
@@ -76,7 +76,7 @@ const UnifiedSectionEditor = ({
   const [enhancementCards, setEnhancementCards] = useState([]);
   
   // States and Hooks (reusing logic from HRIntegrationPage)
-  const { uploadedFiles, isUploading, uploadFiles: uploadFilesHandler, removeFile, clearFiles, setUploadedFiles } = useFiles(sessionId);
+  const { uploadedFiles, isUploading, uploadFiles: uploadFilesHandler, removeFile, setUploadedFiles } = useFiles(sessionId);
   const {
     outputArtifacts,
     addArtifacts,
@@ -402,16 +402,34 @@ const UnifiedSectionEditor = ({
   }, [processCards, sessionId, allFiles, updateChatHistory, sectionName]);
 
   // Sync progress stream to process cards
+  // IMPORTANT: This must both ADD new items AND UPDATE existing items
+  // Code streaming (code_output events) updates the output field on existing code_start items
   useEffect(() => {
     if (currentCardId && progressStream.items.length > 0) {
       setProcessCards(prev => prev.map(card => {
         if (card.id !== currentCardId) return card;
         const existingSteps = card.steps || [];
         const existingIds = new Set(existingSteps.map(s => s.id));
+
+        // Build a map of progress items by ID for efficient lookup
+        const progressItemsById = new Map(progressStream.items.map(item => [item.id, item]));
+
+        // Update existing steps with fresh data from progress stream
+        const updatedSteps = existingSteps.map(step => {
+          const freshItem = progressItemsById.get(step.id);
+          if (freshItem) {
+            // Merge fresh data (output, status, etc.) into existing step
+            return { ...step, ...freshItem };
+          }
+          return step;
+        });
+
+        // Add any new items that don't exist in steps yet
         const newProgressItems = progressStream.items.filter(item => !existingIds.has(item.id));
+
         return {
           ...card,
-          steps: [...existingSteps, ...newProgressItems]
+          steps: [...updatedSteps, ...newProgressItems]
         };
       }));
     }
@@ -464,23 +482,32 @@ const UnifiedSectionEditor = ({
   }, [progressStream.items, isProcessing, extractSkillFromEvent, getFileTypeFromSkill]);
 
   // Track artifacts from progress stream file_created events
+  // NOTE: ChatPage does NOT have this - it only adds from response.new_artifacts
+  // We keep this for earlier feedback but dedupe to avoid duplicates with response.new_artifacts
   useEffect(() => {
     const fileCreatedEvents = progressStream.items.filter(
       item => item.type === 'file_created'
     );
 
     if (fileCreatedEvents.length > 0) {
-      const newArtifacts = fileCreatedEvents.map(event => ({
-        filename: event.filename,
-        type: event.filename.split('.').pop().toUpperCase(),
-        url: getFileUrl(event.filename),
-        previewUrl: getPreviewUrl(event.filename),
-        isOutput: true,
-        createdAt: new Date().toISOString()
-      }));
-      addArtifacts(newArtifacts);
+      // Dedupe: only add artifacts not already in outputArtifacts
+      const existingFilenames = new Set(outputArtifacts.map(a => a.filename));
+      const newArtifacts = fileCreatedEvents
+        .filter(event => !existingFilenames.has(event.filename))
+        .map(event => ({
+          filename: event.filename,
+          type: event.filename.split('.').pop().toUpperCase(),
+          url: getFileUrl(event.filename),
+          previewUrl: getPreviewUrl(event.filename),
+          isOutput: true,
+          createdAt: new Date().toISOString()
+        }));
+
+      if (newArtifacts.length > 0) {
+        addArtifacts(newArtifacts);
+      }
     }
-  }, [progressStream.items, addArtifacts]);
+  }, [progressStream.items, addArtifacts, outputArtifacts]);
 
   // Auto-preview uploaded files
   useEffect(() => {
@@ -585,7 +612,16 @@ const UnifiedSectionEditor = ({
     );
 
     try {
-      const fileNames = contextFiles || [...pinnedFiles.map(f => f.filename), ...uploadedFiles.map(f => f.filename)];
+      // Build context files like ChatPage: pinnedFiles + uploadedFiles + recent outputArtifacts
+      const buildContextFiles = () => {
+        const filenames = new Set(); // Dedupe by filename
+        pinnedFiles.forEach(f => filenames.add(f.filename));
+        uploadedFiles.forEach(f => filenames.add(f.filename));
+        // Include last 10 output artifacts for better document awareness (ChatPage parity)
+        outputArtifacts.slice(-10).forEach(f => filenames.add(f.filename));
+        return Array.from(filenames);
+      };
+      const fileNames = contextFiles || buildContextFiles();
 
       // Clear uploaded files after including in prompt (ChatPage parity)
       if (uploadedFiles.length > 0 && setUploadedFiles) {
@@ -671,6 +707,10 @@ const UnifiedSectionEditor = ({
         }));
         addArtifacts(newArtifacts);
 
+        // Add new artifacts to allFiles with "newest first" ordering (ChatPage parity)
+        // This explicit setAllFiles is needed because the useEffect that derives allFiles
+        // from pinnedFiles + uploadedFiles + outputArtifacts puts outputArtifacts at the end,
+        // but we want new artifacts at the top for better UX.
         setAllFiles(prev => {
           const withoutPending = prev.filter(f => !f.isPending);
           return [...newArtifacts, ...withoutPending];
@@ -749,6 +789,7 @@ const UnifiedSectionEditor = ({
     sessionId,
     uploadedFiles,
     pinnedFiles,
+    outputArtifacts,
     isProcessing,
     addArtifacts,
     selectArtifact,
@@ -760,13 +801,22 @@ const UnifiedSectionEditor = ({
     pendingArtifact,
     sectionKey,
     setUploadedFiles,
-    ragAvailable
+    ragAvailable,
+    getIntegrations,
+    skillHint,
+    webModeEnabled
   ]);
 
   // Retry handler (must be declared after handleSendMessage to avoid TDZ at runtime)
+  // Include outputArtifacts in context so "edit this document" works on retry (ChatPage parity)
   const handleRetry = useCallback((query) => {
-    handleSendMessage(query, [...pinnedFiles.map(f => f.filename), ...uploadedFiles.map(f => f.filename)], null);
-  }, [pinnedFiles, uploadedFiles, handleSendMessage]);
+    const contextFiles = [...new Set([
+      ...pinnedFiles.map(f => f.filename),
+      ...uploadedFiles.map(f => f.filename),
+      ...outputArtifacts.slice(-10).map(f => f.filename)
+    ])];
+    handleSendMessage(query, contextFiles, null);
+  }, [pinnedFiles, uploadedFiles, outputArtifacts, handleSendMessage]);
 
   // Resizing logic
   const onMouseMove = useCallback((e) => {
@@ -967,131 +1017,95 @@ const UnifiedSectionEditor = ({
         </div>
       )}
 
-      {/* Editor Header */}
-      <header className="h-16 border-b border-light-border bg-white flex items-center justify-between px-6 shrink-0 shadow-sm">
-        <div className="flex items-center gap-4">
-          <Link to={backTo} className="p-2 hover:bg-light-sidebar rounded-xl transition-colors text-light-text-secondary">
+      {/* Editor Header - Premium & Organized */}
+      <header className="h-16 border-b border-light-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-30 shadow-[0_1px_2px_0_rgba(0,0,0,0.02)]">
+        <div className="flex items-center gap-6">
+          <Link 
+            to={backTo} 
+            className="p-2.5 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-xl transition-all border border-transparent hover:border-brand-accent-100 active:scale-95"
+            title="Back to Dashboard"
+          >
             <ChevronLeft className="w-5 h-5" />
           </Link>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold tracking-widest text-brand-accent-600 uppercase">{sectionName} Workspace</span>
-              <div className="w-1 h-1 rounded-full bg-light-border" />
-              <span className="text-[10px] font-bold text-green-600 tracking-widest uppercase">Live System</span>
-              {employee?.name ? (
-                <>
-                  <div className="w-1 h-1 rounded-full bg-light-border" />
-                  <span className="text-[10px] font-bold text-light-text-secondary tracking-widest uppercase">
-                    EMPLOYEE: {employee.name}
-                  </span>
-                </>
-              ) : null}
+          
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-brand-accent-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent-100/50">
+              <img src="/logophi_brown.png" alt="Phi" className="w-6 h-6 object-contain brightness-0 invert" />
             </div>
-            <h1 className="text-sm font-bold text-light-text">{activeArtifact?.filename || 'Untitled Document'}</h1>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="text-[9px] font-black tracking-[0.2em] text-brand-accent-600 uppercase leading-none">{sectionName}</span>
+                <div className="w-1 h-1 rounded-full bg-light-border" />
+                <span className="text-[9px] font-black text-green-600 tracking-[0.2em] uppercase leading-none">LIVE_SYSTEM</span>
+                {employee?.name ? (
+                  <>
+                    <div className="w-1 h-1 rounded-full bg-light-border" />
+                    <span className="text-[9px] font-black text-light-text-secondary tracking-[0.2em] uppercase leading-none">
+                      EMP: {employee.name.split(' ')[0]}
+                    </span>
+                  </>
+                ) : null}
+              </div>
+              <h1 className="text-sm font-bold text-light-text leading-none tracking-tight">
+                {activeArtifact?.filename || 'Workspace Overview'}
+              </h1>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Skill Mode (all skills everywhere) */}
-          <div className="hidden md:flex items-center gap-2">
-            <span className="text-[10px] font-bold tracking-widest text-light-text-secondary uppercase">SKILL</span>
-            <select
-              value={skillHint || ''}
-              onChange={(e) => setSkillHint(e.target.value || null)}
-              className="text-xs font-bold px-2 py-1 rounded-lg border border-light-border bg-white text-light-text"
-              title="Optional skill hint (does not restrict capabilities)"
+        <div className="flex items-center gap-2">
+          {/* Workspace Tools Group */}
+          <div className="flex items-center bg-light-bg/50 p-1 rounded-2xl border border-light-border/50 mr-2">
+            <button
+              type="button"
+              onClick={() => setTemplatesOpen(true)}
+              className="flex items-center gap-2 px-4 py-1.5 text-[11px] font-black text-light-text-secondary hover:text-brand-accent-600 hover:bg-white rounded-xl transition-all uppercase tracking-wider"
             >
-              <option value="">AUTO</option>
-              {availableSkills.map((s) => (
-                <option key={s.name} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              Templates
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setTemplatesOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-light-text hover:bg-light-sidebar rounded-xl transition-all border border-transparent hover:border-light-border"
-            title="Choose a document template"
-          >
-            TEMPLATES
-          </button>
+          <div className="w-[1px] h-6 bg-light-border mx-1" />
 
-          <button
-            type="button"
-            onClick={() => setWebModeEnabled((v) => !v)}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all border ${
-              webModeEnabled
-                ? 'bg-brand-accent-600 text-white border-brand-accent-700'
-                : 'text-light-text border-transparent hover:border-light-border hover:bg-light-sidebar'
-            }`}
-            title="Toggle web mode (scrape URLs mentioned in prompts)"
-          >
-            WEB_MODE
-          </button>
-
-          <button
-            type="button"
-            onClick={handleEnhanceWithImages}
-            disabled={isEnhancing || !activeArtifact}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all border ${
-              (isEnhancing || !activeArtifact)
-                ? 'text-light-text-secondary border-light-border bg-white cursor-not-allowed'
-                : 'text-light-text border-transparent hover:border-light-border hover:bg-light-sidebar'
-            }`}
-            title="Enhance the active document with AI-generated images"
-          >
-            {isEnhancing ? 'ENHANCING…' : 'ENHANCE_WITH_AI'}
-          </button>
-
-          <button className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-light-text hover:bg-light-sidebar rounded-xl transition-all border border-transparent hover:border-light-border">
-            <Share2 className="w-4 h-4" />
-            SHARE
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-brand-accent-600 hover:bg-brand-accent-700 rounded-xl transition-all shadow-md shadow-brand-accent-100">
-            <Save className="w-4 h-4" />
-            SAVE CHANGES
-          </button>
-          <div className="w-[1px] h-6 bg-light-border mx-2" />
-          <button className="p-2 text-light-text-secondary hover:bg-light-sidebar rounded-lg">
+          <button className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-xl transition-all">
             <Settings className="w-4 h-4" />
           </button>
 
-          {/* Connect menu (ChatPage parity) */}
-          <ConnectMenu
-            sessionId={sessionId}
-            connectors={connectors}
-            connectionStatus={connectionStatus}
-            activeConnectors={activeConnectors}
-            onToggleConnector={toggleConnector}
-            onConnectApp={connectApp}
-            connectAvailable={connectAvailable}
-          />
-          <button
-            type="button"
-            onClick={async () => {
-              const newId = await createNewSession();
-              setProcessCards([]);
-              setAllFiles([]);
-              setPinnedFiles([]);
-              setOutputArtifacts([]);
-              setActiveArtifact(null);
-              setChatMessages([]);
-              deleteSessionData(sessionId);
-              return newId;
-            }}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-brand-accent-600 hover:bg-brand-accent-700 rounded-xl transition-all shadow-md shadow-brand-accent-100"
-          >
-            NEW CHAT
-          </button>
+          {/* Connect & New Chat */}
+          <div className="flex items-center gap-2 ml-2">
+            <ConnectMenu
+              sessionId={sessionId}
+              connectors={connectors}
+              connectionStatus={connectionStatus}
+              activeConnectors={activeConnectors}
+              onToggleConnector={toggleConnector}
+              onConnectApp={connectApp}
+              connectAvailable={connectAvailable}
+            />
+            <button
+              type="button"
+              onClick={async () => {
+                const newId = await createNewSession();
+                setProcessCards([]);
+                setAllFiles([]);
+                setPinnedFiles([]);
+                setOutputArtifacts([]);
+                setActiveArtifact(null);
+                setChatMessages([]);
+                deleteSessionData(sessionId);
+                return newId;
+              }}
+              className="flex items-center gap-2 px-5 py-2 text-[11px] font-black text-white bg-gray-900 hover:bg-black rounded-xl transition-all shadow-lg shadow-gray-200 active:scale-95 uppercase tracking-widest"
+            >
+              NEW_SESSION
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content - Improved Dividers */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sessions Sidebar (ChatPage parity) */}
+        {/* Sessions Sidebar */}
         <ChatHistorySidebar
           sessions={chatHistory}
           currentSessionId={sessionId}
@@ -1134,27 +1148,33 @@ const UnifiedSectionEditor = ({
         />
 
         {/* Left: Files */}
-        <div style={{ width: `${leftWidth}px` }} className="shrink-0 bg-white border-r border-light-border overflow-hidden">
+        <div style={{ width: `${leftWidth}px` }} className="shrink-0 bg-white overflow-hidden flex flex-col">
           <FileUploadSidebar
             sessionId={sessionId}
             uploadedFiles={uploadedFiles}
             isUploading={isUploading}
             onUploadFiles={uploadFilesHandler}
-            onRemoveFile={removeFile}
+            onRemoveFile={handleRemoveFile}
             maxFiles={10}
             acceptedTypes={acceptedTypes}
             demoMode={sectionKey}
           />
         </div>
 
-        {/* Resize Divider */}
+        {/* Modern Resize Divider Left */}
         <div 
           onMouseDown={() => setIsResizingLeft(true)}
-          className="w-1 cursor-col-resize hover:bg-brand-accent-500/20 transition-colors shrink-0" 
-        />
+          className={`w-1.5 cursor-col-resize flex-shrink-0 transition-all group relative z-10 ${
+            isResizingLeft ? 'bg-brand-accent-100/30' : 'bg-transparent hover:bg-brand-accent-50'
+          }`}
+        >
+          <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] transition-colors ${
+            isResizingLeft ? 'bg-brand-accent-600' : 'bg-light-border group-hover:bg-brand-accent-300'
+          }`} />
+        </div>
 
         {/* Middle: Preview */}
-        <div className="flex-1 min-w-0 bg-light-bg flex flex-col">
+        <div className="flex-1 min-w-0 bg-[#FAFAF9] flex flex-col shadow-[inset_0_0_20px_0_rgba(0,0,0,0.015)]">
           <DocumentViewer
             documents={allFiles}
             activeArtifact={activeArtifact}
@@ -1180,20 +1200,34 @@ const UnifiedSectionEditor = ({
             }}
             viewMode="grid"
             demoMode={sectionKey}
+            webModeEnabled={webModeEnabled}
+            onToggleWebMode={() => setWebModeEnabled(prev => !prev)}
+            isEnhancing={isEnhancing}
+            onEnhanceWithImages={handleEnhanceWithImages}
           />
         </div>
 
-        {/* Resize Divider */}
+        {/* Modern Resize Divider Right */}
         <div 
           onMouseDown={() => setIsResizingRight(true)}
-          className="w-1 cursor-col-resize hover:bg-brand-accent-500/20 transition-colors shrink-0" 
-        />
+          className={`w-1.5 cursor-col-resize flex-shrink-0 transition-all group relative z-10 ${
+            isResizingRight ? 'bg-brand-accent-100/30' : 'bg-transparent hover:bg-brand-accent-50'
+          }`}
+        >
+          <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] transition-colors ${
+            isResizingRight ? 'bg-brand-accent-600' : 'bg-light-border group-hover:bg-brand-accent-300'
+          }`} />
+        </div>
 
         {/* Right: AI Chat */}
-        <div style={{ width: `${rightWidth}px` }} className="shrink-0 bg-white border-l border-light-border flex flex-col overflow-hidden">
+        <div style={{ width: `${rightWidth}px` }} className="shrink-0 bg-white flex flex-col overflow-hidden">
           <AIChatSidebar
             sessionId={sessionId}
-            contextFiles={[...pinnedFiles.map(f => f.filename), ...uploadedFiles.map(f => f.filename)]}
+            contextFiles={[...new Set([
+              ...pinnedFiles.map(f => f.filename),
+              ...uploadedFiles.map(f => f.filename),
+              ...outputArtifacts.slice(-10).map(f => f.filename)
+            ])]}
             onSendMessage={handleSendMessage}
             messages={chatMessages}
             isLoading={isProcessing}
