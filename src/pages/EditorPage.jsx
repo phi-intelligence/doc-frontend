@@ -22,6 +22,7 @@ const EditorPage = () => {
 
     // Get file from location state
     const [file, setFile] = useState(location.state?.file || null);
+    const returnTo = location.state?.returnTo || '/chat';
 
     // Document state
     const [isModified, setIsModified] = useState(false);
@@ -73,12 +74,12 @@ const EditorPage = () => {
     const handleCloseRequest = useCallback(() => {
         if (isModified) {
             setShowExitDialog(true);
-            setPendingNavigation('/chat');
+            setPendingNavigation(returnTo);
         } else {
             // Navigate back with file info so ChatPage can auto-select it
-            navigate('/chat', { state: { returnedFile: file?.filename } });
+            navigate(returnTo, { state: { returnedFile: file?.filename } });
         }
-    }, [isModified, navigate]);
+    }, [isModified, navigate, returnTo, file?.filename]);
 
     // Handle exit dialog actions
     const handleExitWithSave = useCallback(async () => {
@@ -88,18 +89,18 @@ const EditorPage = () => {
             editorRef.current.save();
             // Wait a bit for save to complete, then navigate with saved file info
             setTimeout(() => {
-                navigate(pendingNavigation || '/chat', {
+                navigate(pendingNavigation || returnTo, {
                     state: { savedFile: file?.filename, savedAt: Date.now() }
                 });
             }, 1500);
         }
-    }, [navigate, pendingNavigation, file]);
+    }, [navigate, pendingNavigation, file, returnTo]);
 
     const handleExitWithoutSave = useCallback(() => {
         setShowExitDialog(false);
         // Pass file info so ChatPage can auto-select it (even without save)
-        navigate(pendingNavigation || '/chat', { state: { returnedFile: file?.filename } });
-    }, [navigate, pendingNavigation, file]);
+        navigate(pendingNavigation || returnTo, { state: { returnedFile: file?.filename } });
+    }, [navigate, pendingNavigation, file, returnTo]);
 
     const handleCancelExit = useCallback(() => {
         setShowExitDialog(false);

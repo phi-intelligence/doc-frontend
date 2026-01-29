@@ -26,7 +26,8 @@ export async function sendMessage(
   skillHint = null,
   templateId = null,
   webUrls = [],
-  webModeEnabled = false
+  webModeEnabled = false,
+  demoMode = null
 ) {
   const response = await apiClient.post('/chat', {
     message,
@@ -34,11 +35,12 @@ export async function sendMessage(
     context_files: files,
     active_document: activeFile,
     current_page: currentPage,
-    integrations: connectors,
+    integrations: Array.isArray(connectors) ? null : (connectors || null),
     skill_hint: skillHint,
     template_id: templateId,
     web_urls: webUrls,
-    web_mode_enabled: webModeEnabled
+    web_mode_enabled: webModeEnabled,
+    demo_mode: demoMode
   }, {
     signal: signal
   });

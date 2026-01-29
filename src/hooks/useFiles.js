@@ -1,23 +1,58 @@
 import { useState, useEffect } from 'react';
 import { STORAGE_KEYS } from '../utils/constants';
-import { getStorageItem, setStorageItem } from '../utils/storage';
-import { uploadFile } from '../api/files';
+import { getSessionKey, getStorageItem, setStorageItem } from '../utils/storage';
+import { uploadFile, getFileUrl, getPreviewUrl } from '../api/files';
 
 /**
  * Hook for file management
  * Handles uploaded files state and operations
  */
 export const useFiles = (sessionId) => {
+  const sessionUploadsKey = sessionId ? getSessionKey(sessionId, 'uploads') : null;
+
   const [uploadedFiles, setUploadedFiles] = useState(() => {
-    return getStorageItem(STORAGE_KEYS.UPLOADED_FILES, []);
+    // Session-scoped uploads (B2B parity requirement)
+    if (sessionUploadsKey) {
+      const sessionFiles = getStorageItem(sessionUploadsKey, null);
+      if (Array.isArray(sessionFiles)) return sessionFiles;
+    }
+
+    // Backward compatibility: migrate legacy global uploads into current session
+    const legacy = getStorageItem(STORAGE_KEYS.UPLOADED_FILES, []);
+    return Array.isArray(legacy) ? legacy : [];
   });
 
   const [isUploading, setIsUploading] = useState(false);
 
   // Persist uploaded files
   useEffect(() => {
-    setStorageItem(STORAGE_KEYS.UPLOADED_FILES, uploadedFiles);
+    if (sessionUploadsKey) {
+      setStorageItem(sessionUploadsKey, uploadedFiles);
+    } else {
+      // fallback (should be rare)
+      setStorageItem(STORAGE_KEYS.UPLOADED_FILES, uploadedFiles);
+    }
   }, [uploadedFiles]);
+
+  // On session change, load uploads for that session (and migrate legacy if needed)
+  useEffect(() => {
+    if (!sessionUploadsKey) return;
+    const sessionFiles = getStorageItem(sessionUploadsKey, null);
+    if (Array.isArray(sessionFiles)) {
+      setUploadedFiles(sessionFiles);
+      return;
+    }
+
+    const legacy = getStorageItem(STORAGE_KEYS.UPLOADED_FILES, []);
+    if (Array.isArray(legacy) && legacy.length > 0) {
+      setUploadedFiles(legacy);
+      // best-effort: persist into this session key
+      setStorageItem(sessionUploadsKey, legacy);
+    } else {
+      setUploadedFiles([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionUploadsKey]);
 
   // Upload files
   const uploadFiles = async (files) => {
@@ -28,14 +63,14 @@ export const useFiles = (sessionId) => {
       for (const file of files) {
         try {
           const result = await uploadFile(file, sessionId);
-          results.push({
+            results.push({
             success: true,
             file,
             result: {
               filename: result.filename || file.name,
               type: (result.filename || file.name).split('.').pop().toUpperCase(),
-              url: `/files/${result.filename || file.name}`,
-              previewUrl: `/preview/${result.filename || file.name}?v=${Date.now()}`,
+              url: getFileUrl(result.filename || file.name),
+              previewUrl: getPreviewUrl(result.filename || file.name),
               isOutput: false,
               uploadedAt: new Date().toISOString()
             }
@@ -54,8 +89,8 @@ export const useFiles = (sessionId) => {
         .map(r => ({
           filename: r.result.filename || r.file.name,
           type: (r.result.filename || r.file.name).split('.').pop().toUpperCase(),
-          url: `/files/${r.result.filename || r.file.name}`,
-          previewUrl: `/preview/${r.result.filename || r.file.name}?v=${Date.now()}`,
+          url: getFileUrl(r.result.filename || r.file.name),
+          previewUrl: getPreviewUrl(r.result.filename || r.file.name),
           isOutput: false,
           uploadedAt: new Date().toISOString()
         }));

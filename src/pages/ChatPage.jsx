@@ -30,10 +30,12 @@ import Header from '../components/layout/Header';
 import WelcomeScreen from '../features/chat/components/WelcomeScreen';
 import ProcessCard from '../components/progress/ProcessCard';
 import EnhancementCard from '../features/artifacts/components/EnhancementCard';
+import ChatPane from '../workspace/ChatPane';
 import FileChip from '../components/common/FileChip';
 import FileThumbnail from '../components/common/FileThumbnail';
 import DocumentPreview from '../components/preview/DocumentPreview';
 import ConnectMenu from '../components/connect/ConnectMenu';
+import { extractUrls, isValidUrl } from '../workspace/workspaceUtils';
 
 /**
  * ChatPage - Main chatbot interface for document and skill operations
@@ -499,22 +501,6 @@ function ChatPage() {
     }
   };
 
-  // URL extraction and validation utilities
-  const extractUrls = (text) => {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const matches = text.match(urlRegex);
-    return matches || [];
-  };
-
-  const isValidUrl = (url) => {
-    try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-
   // Send message handler
   const handleSendMessage = async (e, overrideText = null, templateId = null) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -974,62 +960,18 @@ function ChatPage() {
           />
         ) : (
           <>
-            <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar-dark bg-light-bg">
-              <AnimatePresence>
-                {processCards.map((card) => (
-                  <motion.div
-                    key={card.id}
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="space-y-6"
-                  >
-                    {/* User Message Bubble - Premium Pill */}
-                    <div className="flex justify-end px-2">
-                      <div className="bg-white border border-brand-accent-200/40 px-6 py-4 rounded-[2rem] rounded-tr-lg text-light-text max-w-2xl shadow-[0_4px_15px_rgba(136,108,74,0.05)] transition-shadow hover:shadow-[0_8px_25px_rgba(136,108,74,0.08)]">
-                        <p className="whitespace-pre-wrap text-[15.5px] font-medium leading-[1.6] text-light-text-secondary">{card.query}</p>
-                      </div>
-                    </div>
-
-                    {/* AI Process Card */}
-                    <ProcessCard
-                      title="Phi Docs"
-                      query={card.query}
-                      steps={card.steps}
-                      finalResult={card.finalResult}
-                      artifacts={card.artifacts}
-                      status={card.status}
-                      isCollapsed={card.isCollapsed}
-                      onToggle={() => {
-                        setProcessCards(prev => prev.map(c =>
-                          c.id === card.id ? { ...c, isCollapsed: !c.isCollapsed } : c
-                        ));
-                      }}
-                      onRetry={handleRetry}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {/* Enhancement Cards */}
-              <AnimatePresence>
-                {enhancementCards.map((card) => (
-                  <EnhancementCard
-                    key={card.id}
-                    originalFile={card.originalFile}
-                    enhancedFile={card.enhancedFile}
-                    status={card.status}
-                    onViewFile={(filename) => {
-                      const file = allFiles.find(f => f.filename === filename);
-                      if (file) {
-                        selectArtifact(file);
-                      }
-                    }}
-                  />
-                ))}
-              </AnimatePresence>
-
-              <div ref={messagesEndRef} />
-            </div>
+            <ChatPane
+              processCards={processCards}
+              setProcessCards={setProcessCards}
+              enhancementCards={enhancementCards}
+              onRetry={handleRetry}
+              onViewEnhancedFile={(filename) => {
+                const file = allFiles.find(f => f.filename === filename);
+                if (file) {
+                  selectArtifact(file);
+                }
+              }}
+            />
 
             {/* Input Area - Recessed Command Center */}
             <div className="border-t border-brand-accent-100/50 bg-[#f9f7f2] p-6">
