@@ -22,6 +22,7 @@ import ReportDetail from './pages/app/finance/ReportDetail';
 import LegalDashboard from './pages/app/legal/LegalDashboard';
 import LegalSectionEditor from './pages/app/legal/LegalSectionEditor';
 import DocsDashboard from './pages/app/DocsDashboard';
+import ChatWorkspacePage from './pages/app/ChatWorkspacePage';
 
 import './index.css';
 
@@ -60,7 +61,8 @@ function App() {
           }
         >
           <Route path="dashboard" element={<DashboardPage />} />
-          
+          <Route path="chat" element={<ChatWorkspacePage />} />
+
           {/* HR Workspace */}
           <Route path="hr" element={<HRDashboard />} />
           <Route path="hr/employees" element={<EmployeesDirectory />} />

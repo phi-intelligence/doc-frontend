@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
+  MessageSquare,
   Users, 
   BarChart3, 
   Scale, 
@@ -19,6 +20,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const nav = [
   { to: '/app/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { to: '/app/chat', label: 'Document Chat', icon: MessageSquare },
   { to: '/app/hr', label: 'HR Workspace', icon: Users },
   { to: '/app/finance', label: 'Finance Hub', icon: BarChart3 },
   { to: '/app/legal', label: 'Legal & Compliance', icon: Scale },

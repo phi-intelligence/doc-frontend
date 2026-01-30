@@ -1250,6 +1250,8 @@ const UnifiedSectionEditor = ({
             onRemoveFile={handleRemoveFile}
             onUploadFiles={uploadFilesHandler}
             acceptedTypes={acceptedTypes}
+            webModeEnabled={webModeEnabled}
+            onToggleWebMode={() => setWebModeEnabled(prev => !prev)}
           />
         </div>
       </div>

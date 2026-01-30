@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, Square, Paperclip } from 'lucide-react';
+import { Send, Sparkles, Square, Paperclip, Globe } from 'lucide-react';
 // NOTE: Removed useProgressStream - parent (UnifiedSectionEditor) manages the SSE connection
 // to avoid duplicate connections. Progress state is passed via processCards prop.
 import { sendMessage } from '../../api/chat';
@@ -34,7 +34,9 @@ const AIChatSidebar = ({
   uploadedFiles = [],
   onRemoveFile,
   onUploadFiles,
-  acceptedTypes = ['.docx', '.pdf', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg']
+  acceptedTypes = ['.docx', '.pdf', '.xlsx', '.pptx', '.png', '.jpg', '.jpeg'],
+  webModeEnabled = false,
+  onToggleWebMode = () => {}
 }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
@@ -219,6 +221,19 @@ const AIChatSidebar = ({
                     title="Attach files"
                   >
                     <Paperclip className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onToggleWebMode}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-black rounded-xl transition-all uppercase tracking-wider ${
+                      webModeEnabled
+                        ? 'bg-brand-accent-600 text-white shadow-md'
+                        : 'text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50'
+                    }`}
+                    title="Toggle web scraping (Live Surf) – scrape URLs mentioned in your prompt"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                    LIVE_SURF
                   </button>
                   <div className="w-[1px] h-4 bg-light-border mx-1" />
                   <span className="text-[9px] font-black text-light-text-secondary/40 uppercase tracking-widest ml-1">Secure Channel Enabled</span>

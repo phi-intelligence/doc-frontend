@@ -301,5 +301,5 @@ const ToolsGrid = () => {
   );
 };
 
-export { ToolsGrid, toolCategories };
+export { ToolsGrid, toolCategories, CategorySection };
 export default ToolsGrid;
