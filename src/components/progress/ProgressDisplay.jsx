@@ -133,9 +133,14 @@ const StepItem = ({ item, isLast }) => {
                         {item.children && item.children.length > 0 && (
                             <div className="space-y-1.5 mb-4 pl-3 border-l-2 border-brand-accent-100/50">
                                 {item.children.map((child, idx) => (
-                                    <div key={idx} className="flex items-center gap-2.5 text-xs text-light-text-secondary py-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-200" />
-                                        <span className="font-medium">{child.title}</span>
+                                    <div key={idx} className="flex items-start gap-2.5 text-xs text-light-text-secondary py-1">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-brand-accent-200 mt-1.5 flex-shrink-0" />
+                                        <div className="flex-1 min-w-0">
+                                            <span className="font-medium">{child.title}</span>
+                                            {child.description && (
+                                                <p className="text-[11px] text-light-text-muted mt-0.5 font-mono leading-tight">{child.description}</p>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
