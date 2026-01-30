@@ -3,6 +3,9 @@ import { AnimatePresence, motion } from 'framer-motion';
 import ProcessCard from '../components/progress/ProcessCard';
 import EnhancementCard from '../features/artifacts/components/EnhancementCard';
 
+/** Pixels from bottom to consider "near bottom" for auto-scroll */
+const SCROLL_NEAR_BOTTOM_THRESHOLD = 100;
+
 /**
  * ChatPane
  * Shared layout for ChatPage + editor AI sidebars:
@@ -17,14 +20,24 @@ const ChatPane = ({
   onRetry,
   onViewEnhancedFile
 }) => {
+  const scrollContainerRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = scrollContainerRef.current;
+    if (!el || !messagesEndRef.current) return;
+    const isNearBottom =
+      el.scrollHeight - el.scrollTop - el.clientHeight < SCROLL_NEAR_BOTTOM_THRESHOLD;
+    if (isNearBottom) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [processCards, enhancementCards]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar-dark bg-light-bg">
+    <div
+      ref={scrollContainerRef}
+      className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar-dark bg-light-bg"
+    >
       <AnimatePresence>
         {processCards.map((card) => (
           <motion.div

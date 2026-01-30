@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, Square, Paperclip, Globe } from 'lucide-react';
 // NOTE: Removed useProgressStream - parent (UnifiedSectionEditor) manages the SSE connection
@@ -39,13 +39,9 @@ const AIChatSidebar = ({
   onToggleWebMode = () => {}
 }) => {
   const [input, setInput] = useState('');
-  const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   // Progress stream is managed by parent (UnifiedSectionEditor) and passed via processCards
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [processCards, messages]);
+  // Scroll behavior is handled by ChatPane (only auto-scroll when user is near bottom)
 
   const handleSend = async (e) => {
     e.preventDefault();
