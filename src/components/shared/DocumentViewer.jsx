@@ -26,8 +26,6 @@ import { getFileIcon } from '../../utils/fileUtils';
  * @param {Function} onRemoveFile - Callback when file is removed
  * @param {'grid'|'list'} viewMode - Display mode (grid or list)
  * @param {'hr'|'finance'} demoMode - Demo mode for styling
- * @param {boolean} [videoLoadError] - Optional loading video error state (ChatPage parity)
- * @param {Function} [setVideoLoadError] - Optional setter for loading video error state
  */
 const DocumentViewer = ({ 
   documents = [], 
@@ -45,8 +43,6 @@ const DocumentViewer = ({
   onOpenCanvas,
   viewMode: initialViewMode = 'grid',
   demoMode = null,
-  videoLoadError,
-  setVideoLoadError,
   webModeEnabled = false,
   onToggleWebMode = () => {},
   isEnhancing = false,
@@ -135,8 +131,6 @@ const DocumentViewer = ({
           documentPreviewLoading={documentPreviewLoading}
           setDocumentPreviewLoading={setDocumentPreviewLoading}
           previewLoading={previewLoading}
-          videoLoadError={videoLoadError}
-          setVideoLoadError={setVideoLoadError}
         />
       );
     }

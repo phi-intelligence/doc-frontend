@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
       const data = await res.json();
       if (!data?.token) throw new Error('Login failed: missing token');
       saveToken(data.token);
-      // eager load user
+      // eager load user (may include module, module_name, display_name from backend)
       setUser(data.user || null);
       return data;
     } catch (e) {
@@ -82,6 +82,43 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
   }, [saveToken]);
+
+  const roleLogin = useCallback(async ({ module, display_name }) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/role-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ module, display_name: display_name || undefined })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.detail || 'Role login failed');
+      }
+      const data = await res.json();
+      if (!data?.token) throw new Error('Role login failed: missing token');
+      saveToken(data.token);
+      setUser(data.user || null);
+      return data;
+    } catch (e) {
+      setError(e?.message || 'Role login failed');
+      throw e;
+    } finally {
+      setLoading(false);
+    }
+  }, [saveToken]);
+
+  const getRoles = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/roles');
+      if (!res.ok) return { roles: [] };
+      const data = await res.json();
+      return { roles: data.roles || [] };
+    } catch {
+      return { roles: [] };
+    }
+  }, []);
 
   useEffect(() => {
     // On mount, try to hydrate user if token exists
@@ -100,9 +137,11 @@ export function AuthProvider({ children }) {
     error,
     isAuthenticated,
     login,
+    roleLogin,
+    getRoles,
     logout,
     me
-  }), [token, user, loading, error, isAuthenticated, login, logout, me]);
+  }), [token, user, loading, error, isAuthenticated, login, roleLogin, getRoles, logout, me]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -5,6 +5,9 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-light-bg text-light-text font-sans antialiased;
   }
@@ -16,44 +19,44 @@
   }
 }
 
-/* Custom scrollbar for warm theme */
+/* Custom scrollbar for cool neutral theme */
 .custom-scrollbar-dark::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-track {
-  background: #F1EDE4;
+  background: #C8C8C7;
   border-radius: 4px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb {
-  background: #D8D1C5;
+  background: #B0B0B0;
   border-radius: 4px;
 }
 
 .custom-scrollbar-dark::-webkit-scrollbar-thumb:hover {
-  background: #C8BFB0;
+  background: #9A9A9A;
 }
 
-/* Custom scrollbar for beige terminal */
+/* Custom scrollbar for light neutral panels */
 .custom-scrollbar-light::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 .custom-scrollbar-light::-webkit-scrollbar-track {
-  background: #F3EDE5;
+  background: #D3D3D2;
   border-radius: 3px;
 }
 
 .custom-scrollbar-light::-webkit-scrollbar-thumb {
-  background: #D4C4A8;
+  background: #B0B0B0;
   border-radius: 3px;
 }
 
 .custom-scrollbar-light::-webkit-scrollbar-thumb:hover {
-  background: #B8A07A;
+  background: #9A9A9A;
 }
 
 /* Thin scrollbar variant */
@@ -67,12 +70,12 @@
 }
 
 .custom-scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #E8E4DD;
+  background: #B0B0B0;
   border-radius: 3px;
 }
 
 .custom-scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #D4CFC5;
+  background: #9A9A9A;
 }
 
 /* Hide scrollbar for specific elements */

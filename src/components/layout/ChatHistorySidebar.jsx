@@ -1,6 +1,7 @@
 import React from 'react';
 import { MessageSquarePlus, MessageSquare, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { getRelativeTime } from '../../utils/timeUtils';
+import { useAuth } from '../../auth/AuthContext';
 
 /**
  * Chat history sidebar component
@@ -21,6 +22,13 @@ const ChatHistorySidebar = ({
   isCollapsed,
   onToggleCollapse
 }) => {
+  const { user, isAuthenticated } = useAuth();
+
+  // Get display name and role text
+  const displayName = user?.display_name || user?.email || 'Guest';
+  const roleText = user?.module_name || (user?.role === 'admin' ? 'Administrator' : (isAuthenticated ? 'Pro Plan' : 'Guest'));
+  const userInitial = displayName.charAt(0).toUpperCase();
+
   return (
     <div className={`h-full flex flex-col bg-light-sidebar transition-all duration-300 border-r border-light-border ${isCollapsed ? 'w-12' : 'w-56'}`}>
       {/* Header */}
@@ -78,17 +86,17 @@ const ChatHistorySidebar = ({
         )}
       </div>
 
-      {/* Footer / User Profile Stub */}
+      {/* Footer / User Profile */}
       <div className="p-3 border-t border-light-border">
         <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center' : ''}`}>
           {!isCollapsed && (
             <>
               <div className="w-8 h-8 rounded-full bg-gradient-to-r from-brand-accent-400 to-brand-accent-600 flex items-center justify-center text-white font-bold text-xs ring-2 ring-brand-accent-500/20">
-                P
+                {userInitial}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-light-text truncate">Phi User</div>
-                <div className="text-xs text-light-text-secondary truncate">Pro Plan</div>
+                <div className="text-sm font-medium text-light-text truncate">{displayName}</div>
+                <div className="text-xs text-light-text-secondary truncate">{roleText}</div>
               </div>
             </>
           )}

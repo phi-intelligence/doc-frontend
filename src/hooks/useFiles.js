@@ -11,15 +11,13 @@ export const useFiles = (sessionId) => {
   const sessionUploadsKey = sessionId ? getSessionKey(sessionId, 'uploads') : null;
 
   const [uploadedFiles, setUploadedFiles] = useState(() => {
-    // Session-scoped uploads (B2B parity requirement)
+    // Session-scoped uploads - only load files for THIS session
     if (sessionUploadsKey) {
       const sessionFiles = getStorageItem(sessionUploadsKey, null);
       if (Array.isArray(sessionFiles)) return sessionFiles;
     }
-
-    // Backward compatibility: migrate legacy global uploads into current session
-    const legacy = getStorageItem(STORAGE_KEYS.UPLOADED_FILES, []);
-    return Array.isArray(legacy) ? legacy : [];
+    // New sessions start with empty uploads
+    return [];
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -34,21 +32,14 @@ export const useFiles = (sessionId) => {
     }
   }, [uploadedFiles]);
 
-  // On session change, load uploads for that session (and migrate legacy if needed)
+  // On session change, load uploads for that session only
   useEffect(() => {
     if (!sessionUploadsKey) return;
     const sessionFiles = getStorageItem(sessionUploadsKey, null);
     if (Array.isArray(sessionFiles)) {
       setUploadedFiles(sessionFiles);
-      return;
-    }
-
-    const legacy = getStorageItem(STORAGE_KEYS.UPLOADED_FILES, []);
-    if (Array.isArray(legacy) && legacy.length > 0) {
-      setUploadedFiles(legacy);
-      // best-effort: persist into this session key
-      setStorageItem(sessionUploadsKey, legacy);
     } else {
+      // New sessions start with empty uploads - no legacy migration
       setUploadedFiles([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

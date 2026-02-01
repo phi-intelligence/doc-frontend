@@ -82,6 +82,16 @@ export const listArtifacts = async () => {
 };
 
 /**
+ * List artifacts for a specific session
+ * @param {string} sessionId - Session identifier
+ * @returns {Promise<Object>} Response with artifacts array
+ */
+export const listSessionArtifacts = async (sessionId) => {
+  const response = await apiClient.get(`/artifacts?session_id=${sessionId}`);
+  return response.data;
+};
+
+/**
  * Clear all artifacts
  * @returns {Promise<void>}
  */

@@ -7,37 +7,37 @@ export default {
     theme: {
         extend: {
             colors: {
-                // Main backgrounds - richer vintage paper tones
-                'light-bg': '#F1EDE4',
-                'light-surface': '#FFFFFF',
-                'light-sidebar': '#E7E2D8',
+                // Main backgrounds - Cool neutral greys
+                'light-bg': '#D3D3D2',
+                'light-surface': '#F8F9FA',
+                'light-sidebar': '#C8C8C7',
 
-                // Borders - deeper muted stone
-                'light-border': '#D8D1C5',
-                'light-border-hover': '#C8BFB0',
+                // Borders - Defined neutral greys
+                'light-border': '#B0B0B0',
+                'light-border-hover': '#9A9A9A',
 
-                // Text colors
-                'light-text': '#2A2118',
-                'light-text-secondary': '#5C4830',
-                'light-text-muted': '#8B8680',
+                // Text colors - Neutral darks
+                'light-text': '#1A1A1B',
+                'light-text-secondary': '#454546',
+                'light-text-muted': '#717172',
 
                 // Terminal/code backgrounds
-                'terminal-light': '#FAFAF8',
+                'terminal-light': '#E8E8E7',
                 'code-dark': '#1E1E1E',
 
-                // Brand accent - warm brown/gold
+                // Brand accent - Aqua blue selection palette
                 'brand-accent': {
-                    DEFAULT: '#886C4A',
-                    50: '#FAF7F3',
-                    100: '#F3EDE5',
-                    200: '#E5D9C9',
-                    300: '#D4C4A8',
-                    400: '#B8A07A',
-                    500: '#886C4A',
-                    600: '#755C3D',
-                    700: '#5C4830',
-                    800: '#433524',
-                    900: '#2A2118',
+                    DEFAULT: '#427CCB',
+                    50: '#F0F4FA',
+                    100: '#D6E2F3',
+                    200: '#B8CDEB',
+                    300: '#9AB8E3',
+                    400: '#7FA2D9',
+                    500: '#427CCB',
+                    600: '#195DB0',
+                    700: '#144A8C',
+                    800: '#0E3768',
+                    900: '#092444',
                 },
 
                 // Status colors
@@ -45,14 +45,14 @@ export default {
                 'status-error': '#FF5F56',
                 'status-warning': '#FFBD2E',
 
-                // Legacy aliases
-                'claude-bg': '#FAF9F6',
-                'claude-accent': '#886C4A',
-                'brand-bg': '#FAF9F6',
+                // Legacy aliases updated to neutral
+                'claude-bg': '#F8F9FA',
+                'claude-accent': '#427CCB',
+                'brand-bg': '#F8F9FA',
                 'brand-surface': '#FFFFFF',
-                'claude-text': '#1A1A1A',
-                'claude-msg-user': '#FAF9F6',
-                'claude-msg-bot': '#FAF9F6',
+                'claude-text': '#1A1A1B',
+                'claude-msg-user': '#F0F4FA',
+                'claude-msg-bot': '#F8F9FA',
             },
             fontFamily: {
                 sans: ['"Inter"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],

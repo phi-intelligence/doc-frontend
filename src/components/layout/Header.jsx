@@ -11,11 +11,11 @@ const Header = ({ ragAvailable, ragIndexedDocuments, onClearAll }) => {
   return (
     <div className="h-20 border-b border-light-border flex items-center justify-between px-8 bg-light-bg">
       <div className="flex items-center gap-4">
-        <div className="w-10 h-10">
+        <div className="w-12 h-12 rounded-xl overflow-hidden">
           <img
-            src="/logophi_brown.png"
-            alt="Phi Docs Logo"
-            className="w-full h-full object-contain"
+            src="/genX.png"
+            alt="GendocX Logo"
+            className="w-full h-full object-cover"
             onError={(e) => {
               e.target.style.display = 'none';
               e.target.nextSibling.parentElement.classList.add('p-2');
@@ -24,7 +24,7 @@ const Header = ({ ragAvailable, ragIndexedDocuments, onClearAll }) => {
           />
           <Sparkles className="w-full h-full text-brand-accent-500 hidden" />
         </div>
-        <span className="font-display font-semibold text-xl text-light-text tracking-tight">Phi Docs</span>
+        <span className="font-display font-semibold text-xl text-light-text tracking-tight">GendocX</span>
       </div>
       <div className="flex items-center gap-3">
         <button

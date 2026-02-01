@@ -13,6 +13,7 @@ import {
     Sparkles
 } from 'lucide-react';
 import TerminalBlock from './TerminalBlock';
+import DocumentContentCard from './DocumentContentCard';
 
 /**
  * Claude-style Step Item - Minimal, flat design
@@ -162,15 +163,52 @@ const StepItem = ({ item, isLast }) => {
                             </div>
                         )}
 
-                        {/* Code Block - Use existing TerminalBlock */}
-                        {item.type === 'code_start' && (
-                            <TerminalBlock
-                                code={item.output || item.command || ""}
-                                language={item.language || "javascript"}
-                                title={item.description || `Generating ${item.language || 'code'}...`}
-                                isStreaming={item.status === 'running'}
-                            />
-                        )}
+                        {/* Code Block - Document content cards or terminal */}
+                        {item.type === 'code_start' && (() => {
+                            // Check if this is a document generation step (docx, pptx, xlsx, pdf)
+                            // CRITICAL: Must detect document skills DURING streaming (before content_snippets arrive)
+                            // to show DocumentContentCard with "Drafting..." instead of raw code
+                            const documentSkills = ['docx', 'pptx', 'xlsx', 'pdf', 'doc', 'ppt', 'xls'];
+                            const documentKeywords = /\b(docx|pptx|xlsx|pdf|document|presentation|spreadsheet|report|word|powerpoint|excel)\b/i;
+                            
+                            // Check skill field directly (most reliable)
+                            const hasDocumentSkill = item.skill && documentSkills.includes(item.skill.toLowerCase());
+                            
+                            // Fallback: check title, description, or command for document keywords
+                            const hasDocumentKeyword = (
+                                (item.title && documentKeywords.test(item.title)) ||
+                                (item.description && documentKeywords.test(item.description)) ||
+                                (item.command && documentKeywords.test(item.command))
+                            );
+                            
+                            const isDocumentStep = (
+                                item.content_snippets !== undefined ||
+                                hasDocumentSkill ||
+                                hasDocumentKeyword
+                            );
+
+                            if (isDocumentStep) {
+                                // Show document content card (or "Drafting..." while streaming)
+                                return (
+                                    <DocumentContentCard
+                                        snippets={item.content_snippets || []}
+                                        title={item.description || "Document content"}
+                                        isStreaming={item.status === 'running'}
+                                        language={item.language}
+                                    />
+                                );
+                            }
+
+                            // Non-document code: show terminal block
+                            return (
+                                <TerminalBlock
+                                    code={item.output || item.command || ""}
+                                    language={item.language || "javascript"}
+                                    title={item.description || `Generating ${item.language || 'code'}...`}
+                                    isStreaming={item.status === 'running'}
+                                />
+                            );
+                        })()}
 
                         {/* File Created Card */}
                         {item.type === 'file_created' && (

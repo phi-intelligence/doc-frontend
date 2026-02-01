@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { STORAGE_KEYS } from '../utils/constants';
 import { saveSessionData, loadSessionData, deleteSessionData, getStorageItem, setStorageItem } from '../utils/storage';
-import { createSession, deleteSession as deleteSessionAPI } from '../api/sessions';
+import { createSession, deleteSession as deleteSessionAPI, listSessions } from '../api/sessions';
 
 /**
  * Hook for session management
@@ -19,6 +19,8 @@ export const useSession = () => {
   const [chatHistory, setChatHistory] = useState(() => {
     return getStorageItem(STORAGE_KEYS.CHAT_HISTORY, []);
   });
+
+  const [isLoadingSessions, setIsLoadingSessions] = useState(false);
 
   // Create new session
   const createNewSession = useCallback(async () => {
@@ -87,6 +89,32 @@ export const useSession = () => {
     });
   }, []);
 
+  // Fetch sessions from backend
+  const fetchSessions = useCallback(async () => {
+    setIsLoadingSessions(true);
+    try {
+      const response = await listSessions();
+      if (response.sessions && Array.isArray(response.sessions)) {
+        // Transform backend format to frontend format
+        const sessions = response.sessions.map(s => ({
+          id: s.id,
+          title: s.title || 'New Conversation',
+          timestamp: s.last_updated ? new Date(s.last_updated).getTime() : Date.now(),
+          messageCount: s.message_count || 0,
+          fileCount: s.file_count || 0,
+        }));
+        setChatHistory(sessions);
+        return sessions;
+      }
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
+      // Fall back to local storage
+    } finally {
+      setIsLoadingSessions(false);
+    }
+    return chatHistory;
+  }, [chatHistory]);
+
   // Persist chat history
   useEffect(() => {
     setStorageItem(STORAGE_KEYS.CHAT_HISTORY, chatHistory);
@@ -95,10 +123,12 @@ export const useSession = () => {
   return {
     sessionId,
     chatHistory,
+    isLoadingSessions,
     createNewSession,
     selectSession,
     deleteSession,
     updateChatHistory,
-    setChatHistory
+    setChatHistory,
+    fetchSessions,
   };
 };

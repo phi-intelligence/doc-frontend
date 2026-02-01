@@ -35,7 +35,11 @@ apiClient.interceptors.response.use(
   (error) => {
     // Handle common errors
     if (error.response) {
-      // Server responded with error status
+      // 403 Access denied (e.g. module user hit another module's API) → redirect to app home
+      if (error.response.status === 403 && typeof window !== 'undefined') {
+        window.location.href = '/app';
+        return Promise.reject(error);
+      }
       console.error('API Error:', error.response.data);
     } else if (error.request) {
       // Request made but no response

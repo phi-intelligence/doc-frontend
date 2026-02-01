@@ -14,6 +14,13 @@ import { API_BASE } from '../utils/constants';
  * @param {string|null} templateId - Selected template ID
  * @param {Array} webUrls - URLs to scrape for web mode
  * @param {boolean} webModeEnabled - Whether web scraping mode is enabled
+ * @param {string|null} demoMode - Demo mode (hr, finance, legal, marketing)
+ * @param {Object|null} moduleContext - Module-specific context for AI responses
+ * @param {Object} [moduleContext.employee] - HR employee context {id, name, email, title, department}
+ * @param {Object} [moduleContext.contract] - Legal contract context {id, parties, type, status}
+ * @param {Object} [moduleContext.campaign] - Marketing campaign context {id, name, status}
+ * @param {string} [moduleContext.budgetId] - Finance budget ID
+ * @param {string} [moduleContext.entityType] - Entity type (hr, finance, legal, marketing)
  */
 export async function sendMessage(
   message,
@@ -27,7 +34,8 @@ export async function sendMessage(
   templateId = null,
   webUrls = [],
   webModeEnabled = false,
-  demoMode = null
+  demoMode = null,
+  moduleContext = null
 ) {
   const response = await apiClient.post('/chat', {
     message,
@@ -40,7 +48,8 @@ export async function sendMessage(
     template_id: templateId,
     web_urls: webUrls,
     web_mode_enabled: webModeEnabled,
-    demo_mode: demoMode
+    demo_mode: demoMode,
+    module_context: moduleContext
   }, {
     signal: signal
   });

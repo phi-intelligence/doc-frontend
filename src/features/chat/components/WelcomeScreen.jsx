@@ -1,11 +1,52 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Paperclip, RefreshCw, Clock, ChevronDown, Sparkles,
   FileText, Presentation, FileSpreadsheet, FileImage, Image, Code, ScanLine,
-  Globe
+  Globe, Plus, LayoutGrid, Wand2, ImagePlus, X, ZoomIn
 } from 'lucide-react';
 import TemplateCard from '../../../components/cards/TemplateCard';
+import { listTemplates } from '../../../api/templates';
+
+// Fallback AI Image Generation examples (used when API images not available)
+const fallbackImageExamples = [
+  {
+    id: "fallback_1",
+    title: "Product Photo",
+    prompt: "Generate a professional product photo of a modern smartwatch on a marble surface with soft studio lighting",
+    category: "E-commerce"
+  },
+  {
+    id: "fallback_2",
+    title: "Social Banner",
+    prompt: "Create a vibrant social media banner for a tech startup with abstract geometric shapes and blue gradient",
+    category: "Marketing"
+  },
+  {
+    id: "fallback_3",
+    title: "Blog Illustration",
+    prompt: "Generate an illustration for a blog post about artificial intelligence with neural network visuals",
+    category: "Content"
+  },
+  {
+    id: "fallback_4",
+    title: "Logo Concept",
+    prompt: "Create a minimalist logo concept for a sustainable energy company with leaf and sun elements",
+    category: "Branding"
+  },
+  {
+    id: "fallback_5",
+    title: "Corporate Background",
+    prompt: "Generate a professional corporate team photo background with modern office setting",
+    category: "Corporate"
+  },
+  {
+    id: "fallback_6",
+    title: "Data Infographic",
+    prompt: "Create a clean infographic template about data analytics with charts and icons",
+    category: "Data"
+  }
+];
 
 // Skill-specific suggestions
 const skillSuggestions = {
@@ -144,6 +185,17 @@ const WelcomeScreen = ({
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loadingTemplates, setLoadingTemplates] = useState(false);
+  
+  // All templates for general page
+  const [allTemplates, setAllTemplates] = useState([]);
+  const [loadingAllTemplates, setLoadingAllTemplates] = useState(false);
+  
+  // Gallery images for AI section
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [loadingGallery, setLoadingGallery] = useState(false);
+  
+  // Image preview modal
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Reset category when skill changes
   useEffect(() => {
@@ -158,6 +210,47 @@ const WelcomeScreen = ({
       fetchTemplates(skill, selectedCategory);
     }
   }, [skill, selectedCategory]);
+
+  // Fetch all templates for general page (no skill selected)
+  useEffect(() => {
+    if (!skill) {
+      fetchAllTemplates();
+      fetchGalleryImages();
+    }
+  }, [skill]);
+
+  const fetchAllTemplates = async () => {
+    setLoadingAllTemplates(true);
+    try {
+      const data = await listTemplates({ limit: 20 });
+      setAllTemplates(data.templates || []);
+    } catch (error) {
+      console.error('Failed to load all templates:', error);
+      setAllTemplates([]);
+    } finally {
+      setLoadingAllTemplates(false);
+    }
+  };
+
+  const fetchGalleryImages = async () => {
+    setLoadingGallery(true);
+    try {
+      const response = await fetch('/api/gallery/ai-images?limit=6');
+      if (response.ok) {
+        const data = await response.json();
+        setGalleryImages(data.images || []);
+      } else {
+        // Use fallback examples if API fails
+        setGalleryImages(fallbackImageExamples);
+      }
+    } catch (error) {
+      console.error('Failed to load gallery images:', error);
+      // Use fallback examples
+      setGalleryImages(fallbackImageExamples);
+    } finally {
+      setLoadingGallery(false);
+    }
+  };
 
   const fetchTemplates = async (fileType, category) => {
     setLoadingTemplates(true);
@@ -216,13 +309,13 @@ const WelcomeScreen = ({
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="mx-auto w-24 h-24 mb-6 flex items-center justify-center relative"
+            className="mx-auto w-40 h-40 md:w-48 md:h-48 mb-8 flex items-center justify-center relative"
           >
-            <div className="absolute inset-0 bg-brand-accent-200/20 rounded-full blur-2xl animate-pulse" />
+            <div className="absolute inset-0 bg-brand-accent-200/20 rounded-full blur-3xl animate-pulse" />
             <img
-              src="/logophi_brown.png"
-              alt="Phi Docs Logo"
-              className="w-full h-full object-contain relative z-10"
+              src="/genX.png"
+              alt="GendocX Logo"
+              className="w-full h-full object-contain relative z-10 drop-shadow-lg"
               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block' }}
             />
             <Sparkles className="w-full h-full text-brand-accent-500 hidden" />
@@ -341,6 +434,201 @@ const WelcomeScreen = ({
           </div>
         </div>
 
+        {/* ALL TEMPLATES GALLERY - For General Page (no skill selected) */}
+        {!skill && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="mt-12 w-full max-w-5xl"
+          >
+            {/* Section Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <LayoutGrid className="w-5 h-5 text-brand-accent-500" />
+                <h2 className="text-sm font-medium text-light-text">Start with a template</h2>
+              </div>
+              <button className="text-sm text-brand-accent-600 hover:text-brand-accent-700 font-medium flex items-center gap-1.5 transition-colors">
+                View all templates
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Templates Grid */}
+            <div className="bg-brand-accent-50/40 rounded-xl p-6">
+              {loadingAllTemplates ? (
+                <div className="flex gap-4 overflow-x-auto pb-2">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="flex-shrink-0 w-[140px] animate-pulse">
+                      <div className="aspect-[4/5] rounded-lg bg-brand-accent-100" />
+                      <div className="mt-2.5">
+                        <div className="h-4 bg-brand-accent-100 rounded w-3/4 mb-1" />
+                        <div className="h-3 bg-brand-accent-50 rounded w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex gap-4 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {/* Blank Document Card */}
+                  <button
+                    onClick={() => setSelectedTemplate(null)}
+                    className="flex-shrink-0 w-[140px] group focus:outline-none focus:ring-2 focus:ring-brand-accent-500/30 rounded-lg"
+                  >
+                    <div className="aspect-[4/5] rounded-lg border-2 border-dashed border-brand-accent-300 bg-white hover:border-brand-accent-500 hover:bg-brand-accent-50 transition-all flex items-center justify-center group-hover:shadow-lg group-hover:shadow-brand-accent-100">
+                      <Plus className="w-12 h-12 text-brand-accent-500 group-hover:text-brand-accent-600 transition-colors" />
+                    </div>
+                    <div className="mt-2.5 text-left">
+                      <p className="text-sm font-medium text-light-text">Blank</p>
+                      <p className="text-xs text-brand-accent-600">New Document</p>
+                    </div>
+                  </button>
+
+                  {/* Template Cards */}
+                  {allTemplates.map((template) => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleTemplateSelect(template)}
+                      className={`flex-shrink-0 w-[140px] group text-left focus:outline-none focus:ring-2 focus:ring-brand-accent-500/30 rounded-lg ${
+                        selectedTemplate?.id === template.id ? 'ring-2 ring-brand-accent-500' : ''
+                      }`}
+                    >
+                      <div className={`aspect-[4/5] rounded-lg border bg-white overflow-hidden hover:shadow-lg hover:shadow-brand-accent-100 transition-all ${
+                        selectedTemplate?.id === template.id 
+                          ? 'border-brand-accent-500 shadow-lg shadow-brand-accent-200' 
+                          : 'border-gray-200 hover:border-brand-accent-400'
+                      }`}>
+                        {template.thumbnail_url ? (
+                          <img
+                            src={template.thumbnail_url}
+                            alt={template.name}
+                            className="w-full h-full object-cover object-top"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-white to-brand-accent-50">
+                            {template.file_type === 'xlsx' ? (
+                              <FileSpreadsheet className="w-10 h-10 text-green-600" />
+                            ) : template.file_type === 'pptx' ? (
+                              <Presentation className="w-10 h-10 text-orange-500" />
+                            ) : (
+                              <FileText className="w-10 h-10 text-brand-accent-500" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2.5">
+                        <p className="text-sm font-medium text-light-text group-hover:text-brand-accent-700 truncate transition-colors">
+                          {template.name}
+                        </p>
+                        <p className="text-xs text-brand-accent-600 truncate">
+                          {template.file_type?.toUpperCase() || 'Document'}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* AI GENERATED IMAGES SECTION - For General Page */}
+        {!skill && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="mt-10 w-full max-w-5xl"
+          >
+            {/* Section Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Wand2 className="w-5 h-5 text-brand-accent-500" />
+                <h2 className="text-sm font-medium text-light-text">AI Generated Images</h2>
+              </div>
+              <button 
+                onClick={() => onSend("Show me what kinds of images you can generate")}
+                className="text-sm text-brand-accent-600 hover:text-brand-accent-700 font-medium flex items-center gap-1.5 transition-colors"
+              >
+                Explore more
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Image Generation Examples Grid */}
+            <div className="bg-gradient-to-br from-brand-accent-50/60 to-brand-accent-100/30 rounded-xl p-6 border border-brand-accent-100/50">
+              {loadingGallery ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="aspect-[3/2] rounded-xl bg-brand-accent-100" />
+                      <div className="mt-2 h-4 bg-brand-accent-100 rounded w-3/4" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+                  {galleryImages.map((image) => (
+                    <button
+                      key={image.id}
+                      onClick={() => setPreviewImage(image)}
+                      className="group text-left focus:outline-none focus:ring-2 focus:ring-brand-accent-500/30 rounded-xl overflow-hidden"
+                    >
+                      <div className="aspect-[3/2] rounded-xl overflow-hidden relative bg-brand-accent-100">
+                        {image.image_url || image.thumbnail_url ? (
+                          <img
+                            src={image.image_url || image.thumbnail_url}
+                            alt={image.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            loading="lazy"
+                            onError={(e) => {
+                              // Hide broken image, show placeholder
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        {/* Placeholder shown when no image or image fails to load */}
+                        <div className={`w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-accent-100 to-brand-accent-200 ${image.image_url || image.thumbnail_url ? 'hidden' : 'flex'}`}>
+                          <Wand2 className="w-8 h-8 text-brand-accent-400" />
+                        </div>
+                        {/* Hover Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                          <div className="flex items-center gap-1.5 text-white text-xs font-medium">
+                            <ZoomIn className="w-3.5 h-3.5" />
+                            Preview
+                          </div>
+                        </div>
+                        {/* Category Badge */}
+                        <div className="absolute top-2 right-2 px-2 py-0.5 bg-white/90 backdrop-blur-sm rounded-full text-[10px] font-bold text-brand-accent-700 uppercase tracking-wide">
+                          {image.category}
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-light-text group-hover:text-brand-accent-700 truncate transition-colors">
+                          {image.title}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Generate Custom Prompt */}
+              <div className="mt-6 pt-5 border-t border-brand-accent-200/50">
+                <button
+                  onClick={() => onSend("Generate a custom image: ")}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-white/80 hover:bg-white border border-brand-accent-200 hover:border-brand-accent-400 rounded-xl text-sm font-medium text-brand-accent-700 hover:text-brand-accent-800 transition-all group"
+                >
+                  <Wand2 className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                  Create Custom Image with AI
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* TEMPLATES SECTION - Premium Browser */}
         {showTemplates && (
           <motion.div
@@ -420,6 +708,59 @@ const WelcomeScreen = ({
           </motion.div>
         )}
       </motion.div>
+
+      {/* Image Preview Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            onClick={() => setPreviewImage(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-4xl w-full max-h-[90vh] bg-white rounded-2xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setPreviewImage(null)}
+                className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              {/* Image */}
+              <div className="relative">
+                <img
+                  src={previewImage.image_url || previewImage.thumbnail_url}
+                  alt={previewImage.title}
+                  className="w-full max-h-[70vh] object-contain bg-gray-100"
+                />
+              </div>
+
+              {/* Info Footer */}
+              <div className="p-6 bg-white border-t border-gray-100">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">
+                      {previewImage.title}
+                    </h3>
+                    <span className="inline-block px-2 py-0.5 bg-brand-accent-100 text-brand-accent-700 text-xs font-bold rounded-full uppercase">
+                      {previewImage.category}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

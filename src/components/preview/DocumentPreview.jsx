@@ -1,5 +1,5 @@
-import React, { useRef, useState, useEffect, memo } from 'react';
-import { RefreshCw, ChevronLeft, ChevronRight, Download, FileUp } from 'lucide-react';
+import React, { memo } from 'react';
+import { RefreshCw, ChevronLeft, ChevronRight, Download, FileUp, Loader2 } from 'lucide-react';
 import MermaidPreview from './MermaidPreview';
 import ReactLivePreview from './ReactLivePreview';
 import ExcelPreview from './ExcelPreview';
@@ -15,8 +15,6 @@ import { getFileIcon } from '../../utils/fileUtils';
  * @param {boolean} documentPreviewLoading - Loading state for document preview
  * @param {Function} setDocumentPreviewLoading - Function to update loading state
  * @param {boolean} previewLoading - Loading state for text previews
- * @param {boolean} [videoLoadError] - Optional controlled loading video error state (ChatPage/editor parity)
- * @param {Function} [setVideoLoadError] - Optional setter for loading video error state
  */
 const DocumentPreview = ({
   artifact,
@@ -27,14 +25,7 @@ const DocumentPreview = ({
   documentPreviewLoading = false,
   setDocumentPreviewLoading,
   previewLoading = false,
-  videoLoadError: videoLoadErrorProp,
-  setVideoLoadError: setVideoLoadErrorProp
 }) => {
-  const videoRef = useRef(null);
-  const [videoLoadErrorInternal, setVideoLoadErrorInternal] = useState(false);
-  const videoLoadError = videoLoadErrorProp !== undefined ? videoLoadErrorProp : videoLoadErrorInternal;
-  const setVideoLoadError = typeof setVideoLoadErrorProp === 'function' ? setVideoLoadErrorProp : setVideoLoadErrorInternal;
-
   // Safe wrapper to handle undefined setDocumentPreviewLoading
   const safeSetLoading = (value) => {
     if (typeof setDocumentPreviewLoading === 'function') {
@@ -44,68 +35,16 @@ const DocumentPreview = ({
     }
   };
 
-
-  // Loading video component (reusable) - Memoized internally for stability
-  const LoadingVideo = ({ message = 'Loading preview...', subtitle = 'Preparing your document' }) => (
-    <div className="absolute inset-0 z-10 bg-black" style={{ contain: 'strict', transform: 'translateZ(0)' }}>
-      {!videoLoadError ? (
-        <video
-          ref={videoRef}
-          src="/loading_preview.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          className="w-full h-full object-cover"
-          style={{ transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}
-          onError={(e) => {
-            const video = e.target;
-            const error = video.error;
-            if (error) {
-              console.error('Video loading error:', {
-                code: error.code,
-                message: error.message,
-                MEDIA_ERR_ABORTED: error.MEDIA_ERR_ABORTED,
-                MEDIA_ERR_NETWORK: error.MEDIA_ERR_NETWORK,
-                MEDIA_ERR_DECODE: error.MEDIA_ERR_DECODE,
-                MEDIA_ERR_SRC_NOT_SUPPORTED: error.MEDIA_ERR_SRC_NOT_SUPPORTED,
-                networkState: video.networkState,
-                readyState: video.readyState,
-                src: video.src
-              });
-            } else {
-              console.error('Video loading error (no error details available):', e);
-            }
-            setVideoLoadError(true);
-          }}
-          onLoadedData={() => {
-            console.log('Video loaded successfully');
-          }}
-          onCanPlay={() => {
-            console.log('Video can play');
-            if (videoRef.current) {
-              videoRef.current.play().catch(err => {
-                console.warn('Video autoplay failed:', err);
-                setVideoLoadError(true);
-              });
-            }
-          }}
-        />
-      ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-          <div className="relative">
-            <RefreshCw className="w-16 h-16 animate-spin text-white/80" />
-            <div className="absolute inset-0 border-4 border-white/20 rounded-full animate-ping"></div>
-          </div>
-          <div className="mt-6 text-center">
-            <p className="text-lg font-medium text-white/90 mb-2">{message}</p>
-            <p className="text-sm text-white/60">{subtitle}</p>
-          </div>
-        </div>
-      )}
-      <div className="absolute bottom-8 left-0 right-0 text-center">
-        <p className="text-sm font-medium text-white/90 bg-black/30 inline-block px-4 py-1.5 rounded-full backdrop-blur-md shadow-sm">{message}</p>
+  // Loading spinner component (simple, fast, reliable)
+  const LoadingSpinner = ({ message = 'Loading preview...', subtitle = 'Preparing your document' }) => (
+    <div className="absolute inset-0 z-10 bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center">
+      <div className="relative">
+        <div className="w-16 h-16 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+        <Loader2 className="absolute inset-0 m-auto w-8 h-8 text-blue-600 animate-pulse" />
+      </div>
+      <div className="mt-6 text-center">
+        <p className="text-lg font-medium text-gray-700">{message}</p>
+        <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
       </div>
     </div>
   );
@@ -135,11 +74,11 @@ const DocumentPreview = ({
     </div>
   );
 
-  // If no artifact but loading state is active, show loading video during transition
+  // If no artifact but loading state is active, show loading spinner during transition
   if (!artifact && documentPreviewLoading) {
     return (
       <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
-        <LoadingVideo />
+        <LoadingSpinner />
       </div>
     );
   }
@@ -160,11 +99,11 @@ const DocumentPreview = ({
   const ext = artifact.type?.toLowerCase();
   const previewUrl = artifact.previewUrl || artifact.url;
 
-  // For pending artifacts, always show loading video
+  // For pending artifacts, always show loading spinner
   if (isPending) {
     return (
       <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
-        <LoadingVideo
+        <LoadingSpinner
           message="Generating document..."
           subtitle="Code generation in progress..."
         />
@@ -218,7 +157,7 @@ const DocumentPreview = ({
   if (ext === 'pdf') {
     return (
       <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
-        {documentPreviewLoading && <LoadingVideo />}
+        {documentPreviewLoading && <LoadingSpinner />}
         <iframe
           src={`${artifact.url}#toolbar=0&navpanes=0&page=${currentPage}`}
           className={`w-full flex-1 border-0 bg-white ${documentPreviewLoading ? 'invisible' : 'visible'}`}
@@ -266,7 +205,7 @@ const DocumentPreview = ({
     return (
       <div className="w-full h-full flex flex-col bg-white rounded-lg overflow-hidden border border-light-border shadow-sm relative">
         {documentPreviewLoading && (
-          <LoadingVideo
+          <LoadingSpinner
             message="Loading preview..."
             subtitle="Converting document..."
           />

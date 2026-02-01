@@ -36,7 +36,7 @@ const ChatPane = ({
   return (
     <div
       ref={scrollContainerRef}
-      className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar-dark bg-light-bg"
+      className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar-dark"
     >
       <AnimatePresence>
         {processCards.map((card) => (
@@ -57,7 +57,7 @@ const ChatPane = ({
 
             {/* AI Process Card */}
             <ProcessCard
-              title="Phi Docs"
+              title="GendocX"
               query={card.query}
               steps={card.steps}
               finalResult={card.finalResult}

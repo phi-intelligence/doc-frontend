@@ -23,6 +23,7 @@ import { useSession } from '../hooks/useSession';
 import { useFiles } from '../hooks/useFiles';
 import { useArtifacts } from '../hooks/useArtifacts';
 import { useConnect } from '../hooks/useConnect';
+import { useAuth } from '../auth/AuthContext';
 
 // Import components
 import ChatHistorySidebar from '../components/layout/ChatHistorySidebar';
@@ -47,6 +48,9 @@ function ChatPage() {
   const skillParam = searchParams.get('skill');
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Auth context - for smart navigation
+  const { isAuthenticated } = useAuth();
 
   // Session management
   const {
@@ -244,14 +248,61 @@ function ChatPage() {
     };
   }, [resize, stopResizing]);
 
-  // Sync progress stream to active card
+  // Sync progress stream to active card and extract file_created events
   useEffect(() => {
     if (currentCardId && progressStream.items.length > 0) {
+      // Extract artifacts from file_created events (real-time updates)
+      const fileCreatedArtifacts = progressStream.items
+        .filter(item => item.type === 'file_created')
+        .map(item => ({
+          filename: item.filename,
+          type: item.filename?.split('.').pop()?.toUpperCase() || 'FILE',
+          url: getFileUrl(item.filename),
+          previewUrl: getPreviewUrl(item.filename),
+          isOutput: true,
+          isPending: false,
+          createdAt: new Date().toISOString()
+        }));
+
       setProcessCards(prev => prev.map(card =>
         card.id === currentCardId
-          ? { ...card, steps: progressStream.items }
+          ? { 
+              ...card, 
+              steps: progressStream.items,
+              // Merge file_created artifacts with existing artifacts
+              artifacts: fileCreatedArtifacts.length > 0 ? fileCreatedArtifacts : card.artifacts
+            }
           : card
       ));
+
+      // Add newly created files to allFiles and outputArtifacts in real-time
+      if (fileCreatedArtifacts.length > 0) {
+        // Add to outputArtifacts (avoids duplicates via addArtifacts)
+        addArtifacts(fileCreatedArtifacts);
+        
+        // Update allFiles with new artifacts
+        setAllFiles(prev => {
+          const withoutPending = prev.filter(f => !f.isPending);
+          const existingFilenames = new Set(withoutPending.map(f => f.filename));
+          const newFiles = fileCreatedArtifacts.filter(f => !existingFilenames.has(f.filename));
+          return [...newFiles, ...withoutPending];
+        });
+
+        // Auto-select the latest artifact if none selected
+        if (!activeArtifact || activeArtifact.isPending) {
+          const latestArtifact = fileCreatedArtifacts[fileCreatedArtifacts.length - 1];
+          selectArtifact(latestArtifact);
+          
+          const ext = latestArtifact.type?.toLowerCase();
+          if (['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'].includes(ext)) {
+            setDocumentPreviewLoading(true);
+          }
+        }
+
+        // Clear pending artifact
+        setPendingArtifact(null);
+      }
+
       const lastItem = progressStream.items[progressStream.items.length - 1];
       if (lastItem && lastItem.message) {
         setProcessingStatus(lastItem.message);
@@ -911,9 +962,9 @@ function ChatPage() {
         <div className="h-16 border-b border-light-border flex items-center justify-between px-4 bg-light-bg relative">
           <div className="flex items-center">
             <Link
-              to="/"
+              to={isAuthenticated ? '/app' : '/'}
               className="p-2.5 text-brand-accent-500 hover:text-brand-accent-700 hover:bg-brand-accent-50 rounded-xl transition-all border border-transparent hover:border-brand-accent-100 active:scale-95"
-              title="Back to Tools"
+              title={isAuthenticated ? 'Back to Dashboard' : 'Back to Tools'}
             >
               <Home className="w-5 h-5" />
             </Link>
@@ -921,7 +972,7 @@ function ChatPage() {
 
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <img
-              src="/logophi_brown.png"
+              src="/genX.png"
               alt="Phi"
               className="h-9 w-9 object-contain"
             />
@@ -974,7 +1025,7 @@ function ChatPage() {
             />
 
             {/* Input Area - Recessed Command Center */}
-            <div className="border-t border-brand-accent-100/50 bg-[#f9f7f2] p-6">
+            <div className="border-t border-brand-accent-100/50 bg-terminal-light p-6">
               {/* Uploaded Files Row - Thumbnail Cards */}
               {uploadedFiles.length > 0 && (
                 <div className="mb-4 flex flex-wrap gap-3 px-2">

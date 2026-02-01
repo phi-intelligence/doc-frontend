@@ -129,7 +129,7 @@ const AIChatSidebar = ({
       </div>
 
       {/* Messages / Process Cards Area */}
-      <div className="flex-1 overflow-hidden flex flex-col bg-[#FAFAF9]">
+      <div className="flex-1 overflow-hidden flex flex-col bg-white">
         <div className="px-6 pt-6">
           {processCards.length === 0 && suggestions.length > 0 && (
             <div className="space-y-3 mb-6">
@@ -181,7 +181,7 @@ const AIChatSidebar = ({
         )}
 
         <form onSubmit={handleSend} className="relative group">
-          <div className="relative flex flex-col bg-[#FAFAF9] border border-light-border rounded-3xl p-2 transition-all duration-300 focus-within:border-brand-accent-400 focus-within:bg-white focus-within:shadow-2xl focus-within:shadow-brand-accent-100/20">
+          <div className="relative flex flex-col bg-white border border-light-border rounded-3xl p-2 transition-all duration-300 focus-within:border-brand-accent-400 focus-within:bg-white focus-within:shadow-2xl focus-within:shadow-brand-accent-100/20">
             <textarea
               value={input}
               onChange={(e) => {

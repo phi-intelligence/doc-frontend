@@ -1,1182 +1,787 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Save, Share2, Settings } from 'lucide-react';
-
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ChevronLeft, MessageSquarePlus, PanelLeftClose, PanelLeft, Globe } from 'lucide-react';
 import { useSession } from '../../../hooks/useSession';
 import { useFiles } from '../../../hooks/useFiles';
 import { useArtifacts } from '../../../hooks/useArtifacts';
 import { useProgressStream } from '../../../hooks/useProgressStream';
-import { useConnect } from '../../../hooks/useConnect';
 import { sendMessage } from '../../../api/chat';
-import { getFileUrl, getPreviewUrl, enhanceWithImages } from '../../../api/files';
-import { getRAGStatus, indexDocument as indexDocumentForRag } from '../../../api/rag';
-import { saveSessionData, loadSessionData, deleteSessionData, getStorageItem, setStorageItem } from '../../../utils/storage';
+import { getFileUrl, getPreviewUrl, listSessionArtifacts } from '../../../api/files';
+import { saveSessionData, loadSessionData, getStorageItem } from '../../../utils/storage';
 import { STORAGE_KEYS } from '../../../utils/constants';
-import { listSkills } from '../../../api/skills';
-
 import FileUploadSidebar from '../../../components/shared/FileUploadSidebar';
 import DocumentViewer from '../../../components/shared/DocumentViewer';
 import AIChatSidebar from '../../../components/shared/AIChatSidebar';
 import ChatHistorySidebar from '../../../components/layout/ChatHistorySidebar';
-import ConnectMenu from '../../../components/connect/ConnectMenu';
-import TemplateCard from '../../../components/cards/TemplateCard';
-import { FILE_TYPE_CATEGORIES, TEMPLATE_FILE_TYPES } from '../../../workspace/templatesConfig';
-import { extractUrls, isValidUrl } from '../../../workspace/workspaceUtils';
-import EnhancementCard from '../../../features/artifacts/components/EnhancementCard';
 
 /**
- * UnifiedSectionEditor - A generic 3-pane editor for departmental workspaces
+ * UnifiedSectionEditor - 3-pane editor for all section-based workflows.
+ *
+ * Props:
+ *   sectionName: Display name (e.g. "Human Resources", "Document Chat")
+ *   sectionKey: Key for demoMode/skillHint (e.g. "hr", "finance", "legal", "general")
+ *   suggestions: Array of prompt suggestions
+ *   backTo: Path for back button (e.g. "/app/hr")
+ *   initialFiles: Array of files to pre-load
+ *   templateId: Template ID to use (from URL or parent)
+ *   initialMessage: Message to send on mount (optional)
+ *   employee: Employee context (HR workflows) - DEPRECATED, use moduleContext instead
+ *   skillHint: Skill hint override (defaults to sectionKey)
+ *   moduleContext: Module-specific context for AI responses
+ *     - employee: {id, name, email, title, department} for HR
+ *     - contract: {id, parties, type, status} for Legal
+ *     - campaign: {id, name, status} for Marketing
+ *     - budgetId: string for Finance
+ *     - entityType: 'hr' | 'finance' | 'legal' | 'marketing'
  */
-const UnifiedSectionEditor = ({ 
-  sectionName = 'General', 
+export default function UnifiedSectionEditor({
+  sectionName = 'Document Editor',
   sectionKey = 'general',
   suggestions = [],
   backTo = '/app/dashboard',
+  initialFiles = [],
+  templateId: initialTemplateId = null,
+  initialMessage = null,
   employee = null,
-  initialFiles = []
-}) => {
-  const location = useLocation();
+  skillHint = null,
+  onBack = null,
+  moduleContext = null,
+}) {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const skillFromUrl = searchParams.get('skill');
-
-  const {
-    sessionId,
-    chatHistory,
-    createNewSession,
-    selectSession: selectSessionHandler,
-    deleteSession: deleteSessionHandler,
-    updateChatHistory
+  const location = useLocation();
+  const { 
+    sessionId, 
+    chatHistory, 
+    isLoadingSessions,
+    createNewSession, 
+    selectSession, 
+    deleteSession,
+    fetchSessions,
+    updateChatHistory,
   } = useSession();
-
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    return getStorageItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
-  });
-
-  // Skill hint (all-skills everywhere): default is "auto" (null) unless URL specifies.
-  const [skillHint, setSkillHint] = useState(() => skillFromUrl || null);
-  const [availableSkills, setAvailableSkills] = useState([]);
-
-  // Templates (B2B parity)
-  const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [templateFileType, setTemplateFileType] = useState(() => {
-    const s = String(skillFromUrl || '').toLowerCase();
-    return TEMPLATE_FILE_TYPES.includes(s) ? s : 'docx';
-  });
-  const [templateCategory, setTemplateCategory] = useState('all');
-  const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [templates, setTemplates] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-
-  // Web mode (B2B parity)
-  const [webModeEnabled, setWebModeEnabled] = useState(false);
-
-  // Enhance-with-images (ChatPage parity)
-  const [isEnhancing, setIsEnhancing] = useState(false);
-  const [enhancementCards, setEnhancementCards] = useState([]);
-  
-  // States and Hooks (reusing logic from HRIntegrationPage)
-  const { uploadedFiles, isUploading, uploadFiles: uploadFilesHandler, removeFile, setUploadedFiles } = useFiles(sessionId);
+  const { uploadedFiles, isUploading, uploadFiles, removeFile, setUploadedFiles } = useFiles(sessionId);
   const {
     outputArtifacts,
-    addArtifacts,
-    selectArtifact,
-    removeArtifact,
     activeArtifact,
     artifactContent,
-    currentPage,
-    setCurrentPage,
-    totalPages,
-    documentPreviewLoading,
-    setDocumentPreviewLoading,
     previewLoading,
+    documentPreviewLoading,
     videoLoadError,
+    currentPage,
+    totalPages,
+    selectArtifact,
+    addArtifacts,
+    removeArtifact,
+    setCurrentPage,
+    setDocumentPreviewLoading,
     setVideoLoadError,
     setOutputArtifacts,
-    setActiveArtifact
   } = useArtifacts();
-  
-  const progressStream = useProgressStream(sessionId);
+  const { items: progressItems, isConnected, clear: clearProgress } = useProgressStream(sessionId);
 
-  // Process cards state - initialize from session-specific storage
+  // State
+  const [templateId, setTemplateId] = useState(initialTemplateId);
   const [processCards, setProcessCards] = useState(() => {
+    // Initialize from session storage if available
     const currentSessionId = getStorageItem(STORAGE_KEYS.SESSION_ID);
     if (currentSessionId) {
       const sessionData = loadSessionData(currentSessionId);
-      if (sessionData?.processCards?.length > 0) {
-        return sessionData.processCards;
-      }
+      return sessionData?.processCards || [];
     }
-    return getStorageItem(STORAGE_KEYS.PROCESS_CARDS, []);
+    return [];
   });
-  const [currentCardId, setCurrentCardId] = useState(null);
-
-  // Local state
-  const [chatMessages, setChatMessages] = useState([]);
+  const [enhancementCards, setEnhancementCards] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const normalizeIncomingFiles = useCallback((files) => {
-    return (files || [])
-      .filter((f) => f?.filename)
-      .map((f) => ({
-        ...f,
-        isPinned: true,
-        isOutput: false,
-        url: f.url?.startsWith('/api') ? f.url : getFileUrl(f.filename),
-        previewUrl: f.previewUrl?.startsWith('/api') ? f.previewUrl : (f.previewUrl || getPreviewUrl(f.filename))
-      }));
-  }, []);
-
-  const [pinnedFiles, setPinnedFiles] = useState(() => normalizeIncomingFiles(initialFiles));
-  const [allFiles, setAllFiles] = useState(() => {
-    const currentSessionId = getStorageItem(STORAGE_KEYS.SESSION_ID);
-    if (currentSessionId) {
-      const sessionData = loadSessionData(currentSessionId);
-      if (sessionData?.allFiles?.length > 0) {
-        return sessionData.allFiles.map((f) => ({
-          ...f,
-          url: f.url?.startsWith('/api') ? f.url : getFileUrl(f.filename),
-          previewUrl: f.previewUrl || getPreviewUrl(f.filename)
-        }));
-      }
-    }
-    return getStorageItem(STORAGE_KEYS.ALL_FILES, []) || [];
-  });
-  const [pendingArtifact, setPendingArtifact] = useState(null);
-
-  // RAG state (ChatPage parity)
-  const [ragAvailable, setRagAvailable] = useState(false);
-  const [ragIndexedDocuments, setRagIndexedDocuments] = useState(false);
-  const [ragIndexing, setRagIndexing] = useState(false);
-
-  // Connect integrations (ChatPage parity)
-  const {
-    connectors,
-    connectionStatus,
-    activeConnectors,
-    connectAvailable,
-    toggleConnector,
-    connectApp,
-    getIntegrations
-  } = useConnect(sessionId);
-
-  // RAG status check (ChatPage parity)
-  const checkRagStatus = useCallback(async () => {
-    try {
-      const status = await getRAGStatus(sessionId);
-      setRagAvailable(status.available || false);
-      setRagIndexedDocuments(status.has_indexed_documents || false);
-    } catch {
-      setRagAvailable(false);
-      setRagIndexedDocuments(false);
-    }
-  }, [sessionId]);
-
-  useEffect(() => {
-    checkRagStatus();
-  }, [checkRagStatus]);
-
-  // Handle returning from /editor with saved/returned file (ChatPage parity)
-  useEffect(() => {
-    if (location.state?.savedFile && location.state?.savedAt) {
-      const savedFilename = location.state.savedFile;
-      const savedAt = location.state.savedAt;
-      const freshPreviewUrl = getPreviewUrl(savedFilename);
-
-      setAllFiles(prev => {
-        const idx = prev.findIndex(f => f.filename === savedFilename);
-        if (idx >= 0) {
-          const updated = [...prev];
-          const updatedFile = { ...updated[idx], previewUrl: freshPreviewUrl, lastSaved: savedAt };
-          updated[idx] = updatedFile;
-          selectArtifact(updatedFile);
-          return updated;
-        }
-        const newFile = {
-          filename: savedFilename,
-          type: savedFilename.split('.').pop().toUpperCase(),
-          url: getFileUrl(savedFilename),
-          previewUrl: freshPreviewUrl,
-          isOutput: true,
-          createdAt: new Date().toISOString(),
-          lastSaved: savedAt
-        };
-        selectArtifact(newFile);
-        return [newFile, ...prev];
-      });
-
-      // Trigger RAG re-indexing for the saved file (ChatPage parity)
-      if (ragAvailable && savedFilename) {
-        setRagIndexing(true);
-        indexDocumentForRag(savedFilename, sessionId)
-          .then(() => setRagIndexedDocuments(true))
-          .catch((err) => console.error('Failed to index document for RAG:', err))
-          .finally(() => setRagIndexing(false));
-      }
-
-      navigate(location.pathname + location.search, { replace: true, state: {} });
-    } else if (location.state?.returnedFile) {
-      const returnedFilename = location.state.returnedFile;
-      setAllFiles(prev => {
-        const existingFile = prev.find(f => f.filename === returnedFilename);
-        if (existingFile) {
-          const freshFile = { ...existingFile, previewUrl: getPreviewUrl(returnedFilename) };
-          selectArtifact(freshFile);
-        }
-        return prev;
-      });
-      navigate(location.pathname + location.search, { replace: true, state: {} });
-    }
-  }, [location.state, location.pathname, location.search, navigate, selectArtifact, setAllFiles, ragAvailable, sessionId]);
+  const [webModeEnabled, setWebModeEnabled] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
   
-  // Resize state
-  const leftWidthKey = `unified_editor_${sectionKey}_left_width`;
-  const rightWidthKey = `unified_editor_${sectionKey}_right_width`;
-  const [leftWidth, setLeftWidth] = useState(() => {
-    return parseInt(localStorage.getItem(leftWidthKey) || '280', 10);
+  // Chat history sidebar state
+  const [historyCollapsed, setHistoryCollapsed] = useState(() => {
+    return localStorage.getItem('editor_history_collapsed') === 'true';
   });
-  const [rightWidth, setRightWidth] = useState(() => {
-    return parseInt(localStorage.getItem(rightWidthKey) || '320', 10);
+
+  // Resize state for resizable panels
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => {
+    return parseInt(localStorage.getItem('editor_left_sidebar_width') || '288', 10);
+  });
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(() => {
+    return parseInt(localStorage.getItem('editor_right_sidebar_width') || '420', 10);
   });
   const [isResizingLeft, setIsResizingLeft] = useState(false);
   const [isResizingRight, setIsResizingRight] = useState(false);
 
   const abortControllerRef = useRef(null);
+  const initialMessageSentRef = useRef(false);
+  const demoMode = sectionKey !== 'general' ? sectionKey : null;
 
-  // Persist sidebar collapse state (same key as ChatPage for consistency)
-  useEffect(() => {
-    setStorageItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, sidebarCollapsed);
-  }, [sidebarCollapsed]);
-
-  // Utility functions for pending artifacts (same approach as demo pages)
-  const extractSkillFromEvent = useCallback((text) => {
-    if (!text) return null;
-    const match = text.match(/for\s+(\w+)/i);
-    if (match && match[1]) return match[1].toLowerCase();
-    const skillPatterns = ['docx', 'pptx', 'xlsx', 'pdf'];
-    const lowerText = text.toLowerCase();
-    for (const skill of skillPatterns) {
-      if (lowerText.includes(skill)) return skill;
+  // Compute final module context (merge legacy employee prop with moduleContext)
+  const finalModuleContext = useMemo(() => {
+    // If moduleContext is provided, use it directly
+    if (moduleContext) {
+      return moduleContext;
+    }
+    // Legacy support: if employee prop is provided, wrap it in moduleContext structure
+    if (employee) {
+      return {
+        employee,
+        entityType: 'hr'
+      };
+    }
+    // If we have a demoMode, include entityType even without specific context
+    if (demoMode) {
+      return {
+        entityType: demoMode
+      };
     }
     return null;
-  }, []);
+  }, [moduleContext, employee, demoMode]);
 
-  // Load skills list (for optional skill picker; does not restrict usage)
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const data = await listSkills();
-        const skills = Array.isArray(data?.skills) ? data.skills : [];
-        setAvailableSkills(skills);
-      } catch {
-        setAvailableSkills([]);
-      }
-    };
-    run();
-  }, []);
+  // Merge uploaded + output documents
+  const allDocuments = useMemo(() => {
+    return [...uploadedFiles, ...outputArtifacts];
+  }, [uploadedFiles, outputArtifacts]);
 
-  // Sync skill hint from URL if it changes
+  // Pre-load initialFiles on mount
   useEffect(() => {
-    setSkillHint(skillFromUrl || null);
-  }, [skillFromUrl]);
-
-  // Sync default template file type from URL skill if applicable
-  useEffect(() => {
-    const s = String(skillFromUrl || '').toLowerCase();
-    if (TEMPLATE_FILE_TYPES.includes(s)) {
-      setTemplateFileType(s);
-      setTemplateCategory('all');
+    if (initialFiles.length > 0 && uploadedFiles.length === 0) {
+      setUploadedFiles(initialFiles);
     }
-  }, [skillFromUrl]);
+  }, []);
 
-  // Fetch templates when modal open and filters change
+  // Fetch sessions on mount
   useEffect(() => {
-    if (!templatesOpen) return;
-    if (!TEMPLATE_FILE_TYPES.includes(templateFileType)) return;
+    fetchSessions();
+  }, []);
 
-    const run = async () => {
-      setTemplatesLoading(true);
+  // Persist session data when processCards or documents change
+  useEffect(() => {
+    if (!sessionId) return;
+    saveSessionData(sessionId, processCards, allDocuments);
+    
+    // Update chat history title based on first query
+    if (processCards.length > 0 && processCards[0]?.query) {
+      updateChatHistory(sessionId, processCards[0].query);
+    }
+  }, [sessionId, processCards, allDocuments, updateChatHistory]);
+
+  // Load session artifacts on mount and when sessionId changes
+  // This ensures proper session isolation - each session shows only its own files
+  useEffect(() => {
+    if (!sessionId) return;
+    
+    // Skip if we have initialFiles (they'll be loaded separately)
+    if (initialFiles.length > 0) return;
+    
+    // Skip if we already have artifacts loaded (e.g., from creating a document)
+    if (outputArtifacts.length > 0) return;
+    
+    // Load session files from backend
+    (async () => {
       try {
-        const categoryParam = templateCategory === 'all' ? '' : `&category=${templateCategory}`;
-        const resp = await fetch(`/api/templates?file_type=${templateFileType}${categoryParam}`);
-        const data = await resp.json().catch(() => ({}));
-        setTemplates(Array.isArray(data?.templates) ? data.templates : []);
-      } catch (e) {
-        console.error('Failed to load templates:', e);
-        setTemplates([]);
-      } finally {
-        setTemplatesLoading(false);
+        const response = await listSessionArtifacts(sessionId);
+        if (response.artifacts && response.artifacts.length > 0) {
+          const artifacts = response.artifacts.map(f => ({
+            filename: f.filename,
+            type: f.type || f.filename.split('.').pop().toUpperCase(),
+            url: getFileUrl(f.filename),
+            previewUrl: getPreviewUrl(f.filename),
+            isOutput: true,
+            isPending: false,
+            size: f.size,
+            modified: f.modified,
+          }));
+          setOutputArtifacts(artifacts);
+        }
+      } catch (error) {
+        console.error('Failed to load initial session files:', error);
       }
-    };
+    })();
+  }, [sessionId]); // Only depend on sessionId to avoid infinite loops
 
-    run();
-  }, [templatesOpen, templateFileType, templateCategory]);
-
-  const getFileTypeFromSkill = useCallback((skill) => {
-    const mapping = {
-      docx: { ext: 'docx', type: 'DOCX' },
-      pptx: { ext: 'pptx', type: 'PPTX' },
-      ppt: { ext: 'pptx', type: 'PPTX' },
-      xlsx: { ext: 'xlsx', type: 'XLSX' },
-      xls: { ext: 'xlsx', type: 'XLSX' },
-      pdf: { ext: 'pdf', type: 'PDF' }
-    };
-    return mapping[skill?.toLowerCase()] || { ext: 'docx', type: 'DOCX' };
-  }, []);
-
-  const acceptedTypes = React.useMemo(() => {
-    // B2B requirement: all editors can create/use all supported document types.
-    return [
-      '.docx', '.doc',
-      '.xlsx', '.xls', '.csv',
-      '.pptx', '.ppt',
-      '.pdf',
-      '.png', '.jpg', '.jpeg', '.gif', '.webp',
-      '.txt', '.md', '.json', '.xml', '.html'
-    ];
-  }, []);
-
-  // Initialize
+  // Persist history collapsed state
   useEffect(() => {
-    if (!sessionId) createNewSession();
-  }, [sessionId, createNewSession]);
+    localStorage.setItem('editor_history_collapsed', historyCollapsed.toString());
+  }, [historyCollapsed]);
 
-  // Load session data on mount
+  // Handle returned file from workspace (Collabora editor)
   useEffect(() => {
-    if (sessionId) {
-      const sessionData = loadSessionData(sessionId);
-      if (sessionData?.processCards?.length > 0) {
-        setProcessCards(sessionData.processCards);
+    const savedFile = location.state?.savedFile;
+    const returnedFile = location.state?.returnedFile;
+    const filename = savedFile || returnedFile;
+
+    if (filename) {
+      // Find file in artifacts or uploads
+      const allDocs = [...outputArtifacts, ...uploadedFiles];
+      const file = allDocs.find(f => f.filename === filename);
+      
+      if (file) {
+        // Refresh preview URL and select the file
+        const freshFile = { ...file, previewUrl: getPreviewUrl(filename) };
+        selectArtifact(freshFile);
+        // Clear state to prevent re-triggering on subsequent renders
+        navigate(location.pathname, { replace: true, state: {} });
+      } else {
+        // File not found locally - fetch from backend and select
+        (async () => {
+          try {
+            const response = await listSessionArtifacts(sessionId);
+            if (response.artifacts && response.artifacts.length > 0) {
+              // Transform backend format to frontend artifact format
+              const artifacts = response.artifacts.map(f => ({
+                filename: f.filename,
+                type: f.type || f.filename.split('.').pop().toUpperCase(),
+                url: getFileUrl(f.filename),
+                previewUrl: getPreviewUrl(f.filename),
+                isOutput: true,
+                isPending: false,
+                size: f.size,
+                modified: f.modified,
+              }));
+              setOutputArtifacts(artifacts);
+              
+              // Find and select the returned file
+              const targetFile = artifacts.find(f => f.filename === filename);
+              if (targetFile) {
+                selectArtifact({ ...targetFile, previewUrl: getPreviewUrl(filename) });
+              }
+            }
+          } catch (error) {
+            console.error('Failed to load session files after workspace return:', error);
+          } finally {
+            // Clear state to prevent re-triggering on subsequent renders
+            navigate(location.pathname, { replace: true, state: {} });
+          }
+        })();
       }
-      if (sessionData?.allFiles?.length > 0) {
-        const normalized = sessionData.allFiles.map((f) => ({
-          ...f,
-          url: f.url?.startsWith('/api') ? f.url : getFileUrl(f.filename),
-          previewUrl: f.previewUrl || getPreviewUrl(f.filename)
+    }
+  }, [location.state, outputArtifacts, uploadedFiles, selectArtifact, navigate, location.pathname, sessionId, setOutputArtifacts]);
+
+  // Send initial message on mount (once)
+  useEffect(() => {
+    if (initialMessage && !initialMessageSentRef.current && sessionId) {
+      initialMessageSentRef.current = true;
+      handleSendMessage(initialMessage, [], null, templateId);
+    }
+  }, [initialMessage, sessionId]);
+
+  // Transform progress items into process cards
+  useEffect(() => {
+    if (progressItems.length === 0) return;
+
+    setProcessCards((prev) => {
+      // Find or create the current card (last one that's still running)
+      let cards = [...prev];
+      let currentCard = cards.find((c) => c.status === 'running');
+
+      if (!currentCard) {
+        // Create new card for this response
+        currentCard = {
+          id: `card-${Date.now()}`,
+          query: '',
+          steps: [],
+          artifacts: [],
+          finalResult: null,
+          status: 'running',
+          isCollapsed: false,
+        };
+        cards.push(currentCard);
+      }
+
+      // Update steps from progress items
+      const steps = progressItems
+        .filter((item) => ['step_start', 'step_complete', 'progress', 'code_start', 'code_output', 'thought'].includes(item.type))
+        .map((item) => ({
+          id: item.id,
+          title: item.title || item.type,
+          status: item.status || 'running',
+          type: item.type,
+          output: item.output,
+          content: item.content,
+          duration: item.duration,
+          language: item.language,
+          children: item.children,
+          content_snippets: item.content_snippets,
         }));
-        setAllFiles(normalized);
-        setOutputArtifacts(normalized.filter((f) => f.isOutput));
+
+      // Extract artifacts from file_created events
+      const artifacts = progressItems
+        .filter((item) => item.type === 'file_created')
+        .map((item) => ({
+          filename: item.filename,
+          type: item.filename.split('.').pop().toUpperCase(),
+          url: getFileUrl(item.filename),
+          previewUrl: getPreviewUrl(item.filename),
+          isOutput: true,
+          isPending: false,
+          createdAt: new Date().toISOString(),
+        }));
+
+      // Check for completion
+      const messageEvent = progressItems.find((item) => item.type === 'message');
+      const errorEvent = progressItems.find((item) => item.type === 'error');
+      const isComplete = messageEvent || errorEvent;
+
+      currentCard.steps = steps;
+      currentCard.artifacts = artifacts;
+      currentCard.status = isComplete ? (errorEvent ? 'error' : 'complete') : 'running';
+      currentCard.finalResult = messageEvent?.content || null;
+
+      // Add new artifacts to output artifacts
+      if (artifacts.length > 0) {
+        addArtifacts(artifacts);
+        // Auto-select newest artifact
+        if (artifacts.length > 0 && !activeArtifact) {
+          selectArtifact(artifacts[artifacts.length - 1]);
+        }
       }
-    }
-  }, [sessionId]);
 
-  // Apply/refresh pinned files from navigation state (employee docs preload)
-  useEffect(() => {
-    const nextPinned = normalizeIncomingFiles(initialFiles);
-    if (nextPinned.length > 0) {
-      setPinnedFiles(nextPinned);
-    }
-  }, [initialFiles, normalizeIncomingFiles]);
-
-  useEffect(() => {
-    const uniqueByFilename = (list) => {
-      const seen = new Set();
-      const out = [];
-      for (const item of list) {
-        if (!item?.filename) continue;
-        if (seen.has(item.filename)) continue;
-        seen.add(item.filename);
-        out.push(item);
+      // Update the card in the array
+      const cardIndex = cards.findIndex((c) => c.id === currentCard.id);
+      if (cardIndex >= 0) {
+        cards[cardIndex] = currentCard;
       }
-      return out;
-    };
 
-    const combined = [
-      ...pinnedFiles.map(f => ({ ...f, isPinned: true, isOutput: false })),
-      ...uploadedFiles.map(f => ({ ...f, isOutput: false })),
-      ...outputArtifacts.map(a => ({ ...a, isOutput: true }))
-    ];
-    setAllFiles(prev => {
-      const pending = prev.filter(f => f.isPending);
-      return [...pending, ...uniqueByFilename(combined)];
+      return cards;
     });
-  }, [pinnedFiles, uploadedFiles, outputArtifacts]);
 
-  // Persist process cards and allFiles
-  useEffect(() => {
-    setStorageItem(STORAGE_KEYS.PROCESS_CARDS, processCards);
-    saveSessionData(sessionId, processCards, allFiles);
-    if (processCards.length > 0) {
-      const firstQuery = processCards[0]?.query || `${sectionName} Workspace`;
-      updateChatHistory(sessionId, firstQuery);
-    }
-  }, [processCards, sessionId, allFiles, updateChatHistory, sectionName]);
-
-  // Sync progress stream to process cards
-  // IMPORTANT: This must both ADD new items AND UPDATE existing items
-  // Code streaming (code_output events) updates the output field on existing code_start items
-  useEffect(() => {
-    if (currentCardId && progressStream.items.length > 0) {
-      setProcessCards(prev => prev.map(card => {
-        if (card.id !== currentCardId) return card;
-        const existingSteps = card.steps || [];
-        const existingIds = new Set(existingSteps.map(s => s.id));
-
-        // Build a map of progress items by ID for efficient lookup
-        const progressItemsById = new Map(progressStream.items.map(item => [item.id, item]));
-
-        // Update existing steps with fresh data from progress stream
-        const updatedSteps = existingSteps.map(step => {
-          const freshItem = progressItemsById.get(step.id);
-          if (freshItem) {
-            // Merge fresh data (output, status, etc.) into existing step
-            return { ...step, ...freshItem };
-          }
-          return step;
-        });
-
-        // Add any new items that don't exist in steps yet
-        const newProgressItems = progressStream.items.filter(item => !existingIds.has(item.id));
-
-        return {
-          ...card,
-          steps: [...updatedSteps, ...newProgressItems]
-        };
-      }));
-    }
-  }, [progressStream.items, currentCardId]);
-
-  // Detect code_start events and create pending artifacts
-  useEffect(() => {
-    if (!isProcessing) {
-      if (pendingArtifact) {
-        setPendingArtifact(null);
-        setAllFiles(prev => prev.filter(f => !f.isPending));
-      }
-      return;
-    }
-
-    const codeStartEvent = progressStream.items.find(
-      item => item.type === 'code_start' && item.status === 'running'
+    // Update processing state
+    const isStillProcessing = progressItems.some(
+      (item) => item.status === 'running' || (item.type === 'step_start' && item.status !== 'complete' && item.status !== 'error')
     );
+    setIsProcessing(isStillProcessing);
+  }, [progressItems]);
 
-    if (codeStartEvent) {
-      const skillName = extractSkillFromEvent(codeStartEvent.command || codeStartEvent.title || '');
+  // Send message handler
+  const handleSendMessage = useCallback(
+    async (message, contextFiles = [], signal = null, templateIdOverride = null) => {
+      if (!message.trim() && !templateIdOverride) return;
 
-      if (skillName && (!pendingArtifact || !pendingArtifact.filename.includes(skillName))) {
-        const fileType = getFileTypeFromSkill(skillName);
-        const pendingFilename = `Generating_${skillName}.${fileType.ext}`;
-
-        const newPendingArtifact = {
-          filename: pendingFilename,
-          type: fileType.type,
-          url: null,
-          previewUrl: null,
-          isOutput: true,
-          isPending: true,
-          createdAt: new Date().toISOString()
-        };
-
-        setAllFiles(prev => {
-          const hasPending = prev.some(f => f.isPending);
-          if (hasPending) {
-            return prev.map(f => f.isPending ? newPendingArtifact : f);
-          }
-          return [newPendingArtifact, ...prev];
-        });
-
-        setPendingArtifact(newPendingArtifact);
-        setDocumentPreviewLoading(true);
+      // Create abort controller if not provided
+      if (!signal) {
+        abortControllerRef.current = new AbortController();
+        signal = abortControllerRef.current.signal;
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [progressStream.items, isProcessing, extractSkillFromEvent, getFileTypeFromSkill]);
 
-  // Track artifacts from progress stream file_created events
-  // NOTE: ChatPage does NOT have this - it only adds from response.new_artifacts
-  // We keep this for earlier feedback but dedupe to avoid duplicates with response.new_artifacts
-  useEffect(() => {
-    const fileCreatedEvents = progressStream.items.filter(
-      item => item.type === 'file_created'
-    );
+      setIsProcessing(true);
+      clearProgress();
 
-    if (fileCreatedEvents.length > 0) {
-      // Dedupe: only add artifacts not already in outputArtifacts
-      const existingFilenames = new Set(outputArtifacts.map(a => a.filename));
-      const newArtifacts = fileCreatedEvents
-        .filter(event => !existingFilenames.has(event.filename))
-        .map(event => ({
-          filename: event.filename,
-          type: event.filename.split('.').pop().toUpperCase(),
-          url: getFileUrl(event.filename),
-          previewUrl: getPreviewUrl(event.filename),
-          isOutput: true,
-          createdAt: new Date().toISOString()
-        }));
+      // Create new process card for this message
+      const newCard = {
+        id: `card-${Date.now()}`,
+        query: message,
+        steps: [],
+        artifacts: [],
+        finalResult: null,
+        status: 'running',
+        isCollapsed: false,
+      };
+      setProcessCards((prev) => [...prev, newCard]);
 
-      if (newArtifacts.length > 0) {
-        addArtifacts(newArtifacts);
+      try {
+        // Get all file names for context
+        const allFileNames = [
+          ...uploadedFiles.map((f) => f.filename),
+          ...(contextFiles || []).map((f) => (typeof f === 'string' ? f : f.filename)),
+        ];
+
+        await sendMessage(
+          message,
+          allFileNames,
+          sessionId,
+          activeArtifact?.filename || null,
+          currentPage,
+          [],
+          signal,
+          skillHint || sectionKey,
+          templateIdOverride || templateId,
+          [],
+          webModeEnabled,
+          demoMode,
+          finalModuleContext
+        );
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Send message error:', error);
+          setProcessCards((prev) =>
+            prev.map((c) =>
+              c.id === newCard.id
+                ? { ...c, status: 'error', finalResult: error.message || 'An error occurred' }
+                : c
+            )
+          );
+        }
+      } finally {
+        setIsProcessing(false);
       }
-    }
-  }, [progressStream.items, addArtifacts, outputArtifacts]);
+    },
+    [
+      sessionId,
+      uploadedFiles,
+      activeArtifact,
+      currentPage,
+      skillHint,
+      sectionKey,
+      templateId,
+      webModeEnabled,
+      demoMode,
+      finalModuleContext,
+      clearProgress,
+    ]
+  );
 
-  // Auto-preview uploaded files
-  useEffect(() => {
-    if (uploadedFiles.length > 0 && !activeArtifact) {
-      const latestFile = uploadedFiles[uploadedFiles.length - 1];
-      selectArtifact(latestFile);
-    }
-  }, [uploadedFiles, activeArtifact, selectArtifact]);
-
-  // Persist sidebar widths
-  useEffect(() => {
-    localStorage.setItem(leftWidthKey, leftWidth.toString());
-  }, [leftWidthKey, leftWidth]);
-
-  useEffect(() => {
-    localStorage.setItem(rightWidthKey, rightWidth.toString());
-  }, [rightWidthKey, rightWidth]);
-
-  // Stop generation handler
+  // Stop generation
   const handleStopGeneration = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
     setIsProcessing(false);
-    setCurrentCardId(null);
-    if (pendingArtifact) {
-      setPendingArtifact(null);
-      setAllFiles(prev => prev.filter(f => !f.isPending));
-    }
-    setProcessCards(prev => prev.map(card =>
-      card.status === 'processing'
-        ? { ...card, status: 'stopped', finalResult: 'Generation stopped by user.' }
-        : card
-    ));
-  }, [pendingArtifact]);
-
-  // File removal handler
-  const handleRemoveFile = useCallback((file, isUpload) => {
-    if (file?.isPinned) {
-      setPinnedFiles(prev => prev.filter(f => f.filename !== file.filename));
-      if (activeArtifact?.filename === file.filename) {
-        setActiveArtifact(null);
-      }
-      setAllFiles(prev => prev.filter(f => f.filename !== file.filename));
-      return;
-    }
-    if (isUpload) {
-      removeFile(file.filename);
-    } else {
-      removeArtifact(file.filename);
-    }
-    if (activeArtifact?.filename === file.filename) {
-      setActiveArtifact(null);
-    }
-    setAllFiles(prev => prev.filter(f => f.filename !== file.filename));
-  }, [removeFile, removeArtifact, activeArtifact, setActiveArtifact]);
-
-  // Toggle card handler
-  const handleToggleCard = useCallback((cardId) => {
-    setProcessCards(prev => prev.map(card =>
-      card.id === cardId ? { ...card, isCollapsed: !card.isCollapsed } : card
-    ));
   }, []);
 
-  // Full parity message handler (generalized by sectionKey → demo_mode)
-  const handleSendMessage = useCallback(async (message, contextFiles, signal, templateId = null) => {
-    if ((!message.trim() && !templateId) || isProcessing) return;
+  // Retry handler
+  const handleRetry = useCallback(
+    (query) => {
+      handleSendMessage(query);
+    },
+    [handleSendMessage]
+  );
 
-    setIsProcessing(true);
+  // File removal
+  const handleRemoveFile = useCallback(
+    (file, isUpload) => {
+      if (isUpload) {
+        removeFile(file.filename);
+      } else {
+        removeArtifact(file.filename);
+      }
+    },
+    [removeFile, removeArtifact]
+  );
 
-    // Create process card
-    const cardId = `card-${Date.now()}`;
-    setCurrentCardId(cardId);
-    progressStream.clear();
+  // Preview handler
+  const handlePreview = useCallback(
+    (doc) => {
+      selectArtifact(doc);
+    },
+    [selectArtifact]
+  );
 
-    const newCard = {
-      id: cardId,
-      query: message || (templateId ? `Use template: ${templateId}` : ''),
-      steps: [],
-      finalResult: '',
-      artifacts: [],
-      status: 'processing',
-      isCollapsed: false
-    };
-    setProcessCards(prev => [...prev, newCard]);
+  // Clear template
+  const handleClearTemplate = useCallback(() => {
+    setTemplateId(null);
+  }, []);
 
-    // Add user message (kept for compatibility; UI mainly uses cards)
-    const userMessage = {
-      role: 'user',
-      content: message || (templateId ? `Use template: ${templateId}` : ''),
-      timestamp: new Date().toISOString()
-    };
-    setChatMessages(prev => [...prev, userMessage]);
+  // Toggle web mode
+  const handleToggleWebMode = useCallback(() => {
+    setWebModeEnabled((prev) => !prev);
+  }, []);
 
-    // Create abort controller
-    abortControllerRef.current = signal ? { abort: () => {} } : new AbortController();
-    const abortSignal = signal || abortControllerRef.current.signal;
+  // Back navigation
+  const handleBack = useCallback(() => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(backTo);
+    }
+  }, [onBack, navigate, backTo]);
 
-    const isFileOperation = ['create', 'generate', 'make', 'build', 'write', 'add', 'edit', 'modify', 'update'].some(
-      word => message.toLowerCase().includes(word)
-    );
-
+  // Enhance with images placeholder
+  const handleEnhanceWithImages = useCallback(async () => {
+    if (!activeArtifact || isEnhancing) return;
+    setIsEnhancing(true);
     try {
-      // Build context files like ChatPage: pinnedFiles + uploadedFiles + recent outputArtifacts
-      const buildContextFiles = () => {
-        const filenames = new Set(); // Dedupe by filename
-        pinnedFiles.forEach(f => filenames.add(f.filename));
-        uploadedFiles.forEach(f => filenames.add(f.filename));
-        // Include last 10 output artifacts for better document awareness (ChatPage parity)
-        outputArtifacts.slice(-10).forEach(f => filenames.add(f.filename));
-        return Array.from(filenames);
-      };
-      const fileNames = contextFiles || buildContextFiles();
+      // TODO: Implement image enhancement
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    } finally {
+      setIsEnhancing(false);
+    }
+  }, [activeArtifact, isEnhancing]);
 
-      // Clear uploaded files after including in prompt (ChatPage parity)
-      if (uploadedFiles.length > 0 && setUploadedFiles) {
-        setUploadedFiles([]);
+  // Open workspace canvas with return navigation
+  const handleOpenCanvas = useCallback((artifact) => {
+    navigate('/editor', {
+      state: {
+        file: artifact,
+        returnTo: window.location.pathname, // Return to current editor route
+        sessionId: sessionId, // Pass current session ID for proper file association
       }
+    });
+  }, [navigate, sessionId]);
 
-      // Extract URLs if web mode enabled (ChatPage parity)
-      let urls = [];
-      if (webModeEnabled && message) {
-        urls = extractUrls(message);
-        urls = urls.filter(isValidUrl);
-      }
+  // New chat handler
+  const handleNewChat = useCallback(async () => {
+    // Save current session data before switching
+    if (sessionId && processCards.length > 0) {
+      saveSessionData(sessionId, processCards, allDocuments);
+    }
+    
+    // Clear all state including activeArtifact
+    setProcessCards([]);
+    clearProgress();
+    setOutputArtifacts([]);
+    setUploadedFiles([]);
+    selectArtifact(null); // Clear active document
+    
+    // Create new session
+    await createNewSession();
+    // Refresh sessions list
+    fetchSessions();
+  }, [sessionId, processCards, allDocuments, createNewSession, clearProgress, 
+      setOutputArtifacts, setUploadedFiles, selectArtifact, fetchSessions]);
 
-      const response = await sendMessage(
-        message,
-        fileNames,
-        sessionId,
-        activeArtifact?.filename || null,
-        currentPage,
-        getIntegrations(), // connectors / integrations dict
-        abortSignal,
-        skillHint, // skill_hint
-        templateId, // template_id
-        urls, // web_urls
-        webModeEnabled, // web_mode_enabled
-        sectionKey // demo_mode
-      );
-
-      // Update process card
-      setProcessCards(prev => prev.map(card => {
-        if (card.id !== cardId) return card;
-        const existingSteps = card.steps || [];
-        const existingIds = new Set(existingSteps.map(s => s.id));
-        const newProgressItems = progressStream.items.filter(item => !existingIds.has(item.id));
-        const allSteps = [...existingSteps, ...newProgressItems];
-
-        const finalSteps = response.new_artifacts?.length > 0
-          ? [
-            ...allSteps,
-            {
-              id: 'exec-complete-' + Date.now(),
-              type: 'step_complete',
-              title: `Execution Complete - ${response.new_artifacts.length} file(s) created`,
-              message: `Successfully generated: ${response.new_artifacts.join(', ')}`,
-              status: 'complete',
-              duration: 0
-            }
-          ]
-          : allSteps;
-
-        const fileDetailsMessage = response.new_artifacts?.length > 0
-          ? `\n\nGenerated ${response.new_artifacts.length} file(s): ${response.new_artifacts.join(', ')}`
-          : '';
-
-        return {
-          ...card,
-          steps: finalSteps,
-          finalResult: (response.response || '') + fileDetailsMessage,
-          artifacts: response.new_artifacts || response.artifacts || [],
-          status: 'completed',
-          isCollapsed: true
-        };
-      }));
-
-      // Add assistant response
-      const assistantMessage = {
-        role: 'assistant',
-        content: response.response || 'Completed successfully',
-        timestamp: new Date().toISOString(),
-        artifacts: response.new_artifacts || response.artifacts || []
-      };
-      setChatMessages(prev => [...prev, assistantMessage]);
-
-      const newArtifactFilenames = response.new_artifacts || response.artifacts || [];
-      if (newArtifactFilenames.length > 0) {
-        const newArtifacts = newArtifactFilenames.map(filename => ({
-          filename,
-          type: filename.split('.').pop().toUpperCase(),
-          url: getFileUrl(filename),
-          previewUrl: getPreviewUrl(filename),
+  // Select session handler
+  const handleSelectSession = useCallback(async (selectedId) => {
+    if (selectedId === sessionId) return;
+    
+    // Save current session data before switching
+    if (sessionId && processCards.length > 0) {
+      saveSessionData(sessionId, processCards, allDocuments);
+    }
+    
+    // Clear current state
+    clearProgress();
+    selectArtifact(null); // Clear active document first
+    
+    // Load session data from localStorage (process cards, etc.)
+    const sessionData = loadSessionData(selectedId);
+    setProcessCards(sessionData?.processCards || []);
+    
+    // Select the session (this updates sessionId in useSession)
+    selectSession(selectedId);
+    
+    // Load session files from backend
+    try {
+      const response = await listSessionArtifacts(selectedId);
+      if (response.artifacts && response.artifacts.length > 0) {
+        // Transform backend format to frontend artifact format
+        const artifacts = response.artifacts.map(f => ({
+          filename: f.filename,
+          type: f.type || f.filename.split('.').pop().toUpperCase(),
+          url: getFileUrl(f.filename),
+          previewUrl: getPreviewUrl(f.filename),
           isOutput: true,
-          createdAt: new Date().toISOString()
+          isPending: false,
+          size: f.size,
+          modified: f.modified,
         }));
-        addArtifacts(newArtifacts);
-
-        // Add new artifacts to allFiles with "newest first" ordering (ChatPage parity)
-        // This explicit setAllFiles is needed because the useEffect that derives allFiles
-        // from pinnedFiles + uploadedFiles + outputArtifacts puts outputArtifacts at the end,
-        // but we want new artifacts at the top for better UX.
-        setAllFiles(prev => {
-          const withoutPending = prev.filter(f => !f.isPending);
-          return [...newArtifacts, ...withoutPending];
-        });
-
-        if (newArtifacts.length > 0) {
-          const newArtifact = newArtifacts[0];
-          const ext = newArtifact.type?.toLowerCase();
-
-          selectArtifact(newArtifact);
-
-          if (['pdf', 'docx', 'doc', 'pptx', 'ppt', 'xlsx', 'xls'].includes(ext)) {
-            setDocumentPreviewLoading(true);
-            setCurrentPage(1);
-          }
-        }
-
-        setPendingArtifact(null);
-
-        // Index new artifacts for RAG when available (ChatPage parity)
-        if (ragAvailable && newArtifactFilenames.length > 0) {
-          setRagIndexing(true);
-          Promise.all(newArtifactFilenames.map((fn) => indexDocumentForRag(fn, sessionId)))
-            .then(() => setRagIndexedDocuments(true))
-            .catch((err) => console.error('Failed to index documents for RAG:', err))
-            .finally(() => setRagIndexing(false));
+        setOutputArtifacts(artifacts);
+        
+        // Auto-select the first artifact for preview
+        if (artifacts.length > 0) {
+          selectArtifact(artifacts[0]);
         }
       } else {
-        if (pendingArtifact) {
-          setPendingArtifact(null);
-          setAllFiles(prev => prev.filter(f => !f.isPending));
-        }
-
-        if (isFileOperation && !response.response?.toLowerCase().includes('error')) {
-          setProcessCards(prev => prev.map(card =>
-            card.id === cardId
-              ? {
-                ...card,
-                status: 'warning',
-                finalResult: (response.response || '') + '\n\n⚠️ No new document was generated. Please try again or rephrase your request.'
-              }
-              : card
-          ));
-        }
+        setOutputArtifacts([]);
       }
     } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Chat error:', error);
-        setProcessCards(prev => prev.map(card =>
-          card.id === cardId
-            ? {
-              ...card,
-              status: 'error',
-              finalResult: `Error: ${error.response?.data?.detail || error.message || 'Something went wrong'}`
-            }
-            : card
-        ));
-        const errorMessage = {
-          role: 'assistant',
-          content: `Error: ${error.message || 'Failed'}`,
-          timestamp: new Date().toISOString(),
-          isError: true
-        };
-        setChatMessages(prev => [...prev, errorMessage]);
-      }
-      if (pendingArtifact) {
-        setPendingArtifact(null);
-        setAllFiles(prev => prev.filter(f => !f.isPending));
-      }
-    } finally {
-      setIsProcessing(false);
-      setCurrentCardId(null);
-      abortControllerRef.current = null;
+      console.error('Failed to load session files:', error);
+      setOutputArtifacts([]);
     }
-  }, [
-    sessionId,
-    uploadedFiles,
-    pinnedFiles,
-    outputArtifacts,
-    isProcessing,
-    addArtifacts,
-    selectArtifact,
-    activeArtifact,
-    currentPage,
-    setCurrentPage,
-    setDocumentPreviewLoading,
-    progressStream,
-    pendingArtifact,
-    sectionKey,
-    setUploadedFiles,
-    ragAvailable,
-    getIntegrations,
-    skillHint,
-    webModeEnabled
-  ]);
+  }, [sessionId, processCards, allDocuments, selectSession, clearProgress, 
+      setOutputArtifacts, selectArtifact]);
 
-  // Retry handler (must be declared after handleSendMessage to avoid TDZ at runtime)
-  // Include outputArtifacts in context so "edit this document" works on retry (ChatPage parity)
-  const handleRetry = useCallback((query) => {
-    const contextFiles = [...new Set([
-      ...pinnedFiles.map(f => f.filename),
-      ...uploadedFiles.map(f => f.filename),
-      ...outputArtifacts.slice(-10).map(f => f.filename)
-    ])];
-    handleSendMessage(query, contextFiles, null);
-  }, [pinnedFiles, uploadedFiles, outputArtifacts, handleSendMessage]);
+  // Delete session handler
+  const handleDeleteSession = useCallback(async (deleteId) => {
+    await deleteSession(deleteId);
+    // Refresh sessions list
+    fetchSessions();
+  }, [deleteSession, fetchSessions]);
 
-  // Resizing logic
-  const onMouseMove = useCallback((e) => {
+  // Toggle history sidebar
+  const toggleHistorySidebar = useCallback(() => {
+    setHistoryCollapsed(prev => !prev);
+  }, []);
+
+  // Persist sidebar widths to localStorage
+  useEffect(() => {
+    localStorage.setItem('editor_left_sidebar_width', leftSidebarWidth.toString());
+  }, [leftSidebarWidth]);
+
+  useEffect(() => {
+    localStorage.setItem('editor_right_sidebar_width', rightSidebarWidth.toString());
+  }, [rightSidebarWidth]);
+
+  // Resize handlers for left sidebar
+  const startResizingLeft = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingLeft(true);
+  }, []);
+
+  const stopResizingLeft = useCallback(() => {
+    setIsResizingLeft(false);
+  }, []);
+
+  const resizeLeft = useCallback((e) => {
     if (isResizingLeft) {
       const newWidth = e.clientX;
       const minWidth = 200;
       const maxWidth = 500;
-      const availableSpace = window.innerWidth - rightWidth;
+      const availableSpace = window.innerWidth - rightSidebarWidth;
       const maxAllowedWidth = Math.max(minWidth, availableSpace - 400);
+      
       if (newWidth >= minWidth && newWidth <= Math.min(maxWidth, maxAllowedWidth)) {
-        setLeftWidth(newWidth);
-      }
-    } else if (isResizingRight) {
-      const newWidth = window.innerWidth - e.clientX;
-      const minWidth = 250;
-      const maxWidth = 600;
-      const availableSpace = window.innerWidth - leftWidth;
-      const maxAllowedWidth = Math.max(minWidth, availableSpace - 400);
-      if (newWidth >= minWidth && newWidth <= Math.min(maxWidth, maxAllowedWidth)) {
-        setRightWidth(newWidth);
+        setLeftSidebarWidth(newWidth);
       }
     }
-  }, [isResizingLeft, isResizingRight, rightWidth, leftWidth]);
+  }, [isResizingLeft, rightSidebarWidth]);
 
-  const onMouseUp = useCallback(() => {
-    setIsResizingLeft(false);
+  // Resize handlers for right sidebar
+  const startResizingRight = useCallback((e) => {
+    e.preventDefault();
+    setIsResizingRight(true);
+  }, []);
+
+  const stopResizingRight = useCallback(() => {
     setIsResizingRight(false);
   }, []);
 
+  const resizeRight = useCallback((e) => {
+    if (isResizingRight) {
+      const newWidth = window.innerWidth - e.clientX;
+      const minWidth = 250;
+      const maxWidth = 600;
+      const availableSpace = window.innerWidth - leftSidebarWidth;
+      const maxAllowedWidth = Math.max(minWidth, availableSpace - 400);
+      
+      if (newWidth >= minWidth && newWidth <= Math.min(maxWidth, maxAllowedWidth)) {
+        setRightSidebarWidth(newWidth);
+      }
+    }
+  }, [isResizingRight, leftSidebarWidth]);
+
+  // Mouse event listeners for resize
   useEffect(() => {
     if (isResizingLeft || isResizingRight) {
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
+      window.addEventListener('mousemove', isResizingLeft ? resizeLeft : resizeRight);
+      window.addEventListener('mouseup', isResizingLeft ? stopResizingLeft : stopResizingRight);
       return () => {
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
+        window.removeEventListener('mousemove', isResizingLeft ? resizeLeft : resizeRight);
+        window.removeEventListener('mouseup', isResizingLeft ? stopResizingLeft : stopResizingRight);
       };
     }
-  }, [isResizingLeft, isResizingRight, onMouseMove, onMouseUp]);
-
-  // Enhance with images handler (ChatPage parity)
-  const handleEnhanceWithImages = useCallback(async () => {
-    if (isEnhancing || !activeArtifact) return;
-    setIsEnhancing(true);
-
-    const cardId = Date.now();
-    const originalFilename = activeArtifact.filename;
-    setEnhancementCards(prev => [...prev, {
-      id: cardId,
-      originalFile: originalFilename,
-      enhancedFile: null,
-      status: 'processing'
-    }]);
-
-    try {
-      const response = await enhanceWithImages(originalFilename, sessionId, 'professional');
-      if (response.success && response.enhanced_filename) {
-        const newFile = {
-          filename: response.enhanced_filename,
-          type: activeArtifact.type,
-          url: getFileUrl(response.enhanced_filename),
-          previewUrl: getPreviewUrl(response.enhanced_filename),
-          isOutput: true,
-          createdAt: new Date().toISOString()
-        };
-
-        setAllFiles(prev => [newFile, ...prev]);
-        selectArtifact(newFile);
-
-        setEnhancementCards(prev => prev.map(c =>
-          c.id === cardId
-            ? { ...c, status: 'completed', enhancedFile: newFile.filename }
-            : c
-        ));
-      } else {
-        setEnhancementCards(prev => prev.map(c =>
-          c.id === cardId ? { ...c, status: 'error' } : c
-        ));
-      }
-    } catch (error) {
-      console.error('Enhancement failed:', error);
-      setEnhancementCards(prev => prev.map(c =>
-        c.id === cardId ? { ...c, status: 'error' } : c
-      ));
-    } finally {
-      setIsEnhancing(false);
-    }
-  }, [isEnhancing, activeArtifact, sessionId, selectArtifact]);
+  }, [isResizingLeft, isResizingRight, resizeLeft, resizeRight, stopResizingLeft, stopResizingRight]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-light-bg flex flex-col overflow-hidden">
-      {/* Templates Modal */}
-      {templatesOpen && (
-        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-light-border flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-light-text">Templates</h3>
-                <p className="text-sm text-light-text-secondary">
-                  Select a template and then send a prompt (or send empty) to create from it.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setTemplatesOpen(false)}
-                className="px-3 py-2 text-sm font-bold text-light-text-secondary hover:text-light-text rounded-xl hover:bg-light-bg"
-              >
-                Close
-              </button>
-            </div>
-
-            <div className="px-6 py-4 border-b border-light-border flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="text-xs font-bold text-light-text-secondary">FILE TYPE</div>
-                <select
-                  value={templateFileType}
-                  onChange={(e) => { setTemplateFileType(e.target.value); setTemplateCategory('all'); }}
-                  className="text-sm font-bold px-3 py-2 rounded-xl border border-light-border bg-white text-light-text"
-                >
-                  {TEMPLATE_FILE_TYPES.map((t) => (
-                    <option key={t} value={t}>{t.toUpperCase()}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="text-xs font-bold text-light-text-secondary">CATEGORY</div>
-                <select
-                  value={templateCategory}
-                  onChange={(e) => setTemplateCategory(e.target.value)}
-                  className="text-sm font-bold px-3 py-2 rounded-xl border border-light-border bg-white text-light-text"
-                >
-                  {(FILE_TYPE_CATEGORIES[templateFileType] || [{ id: 'all', label: 'All Templates' }]).map((c) => (
-                    <option key={c.id} value={c.id}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTemplate(null)}
-                  className="px-4 py-2 text-xs font-bold text-light-text-secondary hover:text-light-text rounded-xl border border-light-border hover:bg-light-bg"
-                >
-                  Clear Selection
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 max-h-[70vh] overflow-y-auto">
-              {templatesLoading ? (
-                <div className="text-sm text-light-text-secondary">Loading templates…</div>
-              ) : templates.length === 0 ? (
-                <div className="text-sm text-light-text-secondary">No templates found.</div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {templates.map((t) => (
-                    <TemplateCard
-                      key={t.id}
-                      template={t}
-                      isSelected={selectedTemplate?.id === t.id}
-                      onClick={() => {
-                        if (selectedTemplate?.id === t.id) setSelectedTemplate(null);
-                        else setSelectedTemplate(t);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 border-t border-light-border flex items-center justify-between bg-light-bg">
-              <div className="text-sm text-light-text-secondary truncate">
-                {selectedTemplate ? (
-                  <>
-                    Selected: <span className="font-bold text-light-text">{selectedTemplate.name}</span> ({selectedTemplate.id})
-                  </>
-                ) : (
-                  'No template selected.'
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  disabled={!selectedTemplate}
-                  onClick={() => setTemplatesOpen(false)}
-                  className={`px-5 py-2.5 text-sm font-bold rounded-xl transition-colors ${
-                    selectedTemplate
-                      ? 'bg-brand-accent-600 text-white hover:bg-brand-accent-700'
-                      : 'bg-white text-light-text-secondary border border-light-border cursor-not-allowed'
-                  }`}
-                >
-                  Use Template
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className={`flex flex-col h-screen w-full bg-light-bg overflow-hidden ${(isResizingLeft || isResizingRight) ? 'cursor-col-resize' : ''}`}>
+      {/* Global Resize Overlay - Prevents iframe from stealing mouse events */}
+      {(isResizingLeft || isResizingRight) && (
+        <div className="fixed inset-0 z-[9999] cursor-col-resize" />
       )}
 
-      {/* Editor Header - Premium & Organized */}
-      <header className="h-16 border-b border-light-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 shrink-0 z-30 shadow-[0_1px_2px_0_rgba(0,0,0,0.02)]">
-        <div className="flex items-center gap-6">
-          <Link 
-            to={backTo} 
-            className="p-2.5 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-xl transition-all border border-transparent hover:border-brand-accent-100 active:scale-95"
-            title="Back to Dashboard"
+      {/* Header */}
+      <div className="h-14 border-b border-light-border flex items-center justify-between px-6 bg-white/80 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-4">
+          {/* Toggle History Sidebar */}
+          <button
+            onClick={toggleHistorySidebar}
+            className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-xl transition-all"
+            title={historyCollapsed ? "Show chat history" : "Hide chat history"}
+          >
+            {historyCollapsed ? <PanelLeft className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+          </button>
+          
+          <div className="w-[1px] h-6 bg-light-border" />
+          
+          <button
+            onClick={handleBack}
+            className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-xl transition-all"
+            title="Back"
           >
             <ChevronLeft className="w-5 h-5" />
-          </Link>
-          
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-brand-accent-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent-100/50">
-              <img src="/logophi_brown.png" alt="Phi" className="w-6 h-6 object-contain brightness-0 invert" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[9px] font-black tracking-[0.2em] text-brand-accent-600 uppercase leading-none">{sectionName}</span>
-                <div className="w-1 h-1 rounded-full bg-light-border" />
-                <span className="text-[9px] font-black text-green-600 tracking-[0.2em] uppercase leading-none">LIVE_SYSTEM</span>
-                {employee?.name ? (
-                  <>
-                    <div className="w-1 h-1 rounded-full bg-light-border" />
-                    <span className="text-[9px] font-black text-light-text-secondary tracking-[0.2em] uppercase leading-none">
-                      EMP: {employee.name.split(' ')[0]}
-                    </span>
-                  </>
-                ) : null}
-              </div>
-              <h1 className="text-sm font-bold text-light-text leading-none tracking-tight">
-                {activeArtifact?.filename || 'Workspace Overview'}
-              </h1>
-            </div>
+          </button>
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black text-brand-accent-500 uppercase tracking-widest leading-none mb-0.5">
+              {sectionKey.toUpperCase()}_EDITOR
+            </span>
+            <h1 className="text-sm font-bold text-light-text tracking-tight">{sectionName}</h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Workspace Tools Group */}
-          <div className="flex items-center bg-light-bg/50 p-1 rounded-2xl border border-light-border/50 mr-2">
-            <button
-              type="button"
-              onClick={() => setTemplatesOpen(true)}
-              className="flex items-center gap-2 px-4 py-1.5 text-[11px] font-black text-light-text-secondary hover:text-brand-accent-600 hover:bg-white rounded-xl transition-all uppercase tracking-wider"
-            >
-              Templates
-            </button>
-          </div>
-
-          <div className="w-[1px] h-6 bg-light-border mx-1" />
-
-          <button className="p-2 text-light-text-secondary hover:text-brand-accent-600 hover:bg-brand-accent-50 rounded-xl transition-all">
-            <Settings className="w-4 h-4" />
+        <div className="flex items-center gap-4">
+          {/* Web Research Toggle */}
+          <button
+            onClick={() => setWebModeEnabled(!webModeEnabled)}
+            className={`flex items-center gap-2 px-4 py-2 text-[11px] font-black rounded-xl transition-all uppercase tracking-wider active:scale-95 ${
+              webModeEnabled
+                ? 'text-white bg-brand-accent-600 shadow-lg shadow-brand-accent-200/40'
+                : 'text-light-text-secondary bg-light-bg border border-light-border hover:border-brand-accent-300 hover:text-brand-accent-600'
+            }`}
+            title={webModeEnabled ? "Web research enabled - click to disable" : "Enable web research for citations and sources"}
+          >
+            <Globe className="w-4 h-4" />
+            LIVE_SURF
           </button>
 
-          {/* Connect & New Chat */}
-          <div className="flex items-center gap-2 ml-2">
-            <ConnectMenu
-              sessionId={sessionId}
-              connectors={connectors}
-              connectionStatus={connectionStatus}
-              activeConnectors={activeConnectors}
-              onToggleConnector={toggleConnector}
-              onConnectApp={connectApp}
-              connectAvailable={connectAvailable}
-            />
-            <button
-              type="button"
-              onClick={async () => {
-                const newId = await createNewSession();
-                setProcessCards([]);
-                setAllFiles([]);
-                setPinnedFiles([]);
-                setOutputArtifacts([]);
-                setActiveArtifact(null);
-                setChatMessages([]);
-                deleteSessionData(sessionId);
-                return newId;
-              }}
-              className="flex items-center gap-2 px-5 py-2 text-[11px] font-black text-white bg-gray-900 hover:bg-black rounded-xl transition-all shadow-lg shadow-gray-200 active:scale-95 uppercase tracking-widest"
-            >
-              NEW_SESSION
-            </button>
-          </div>
-        </div>
-      </header>
+          {/* New Chat Button */}
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-2 px-4 py-2 text-[11px] font-black text-white bg-brand-accent-600 hover:bg-brand-accent-700 rounded-xl shadow-lg shadow-brand-accent-200/40 transition-all uppercase tracking-wider active:scale-95"
+            title="Start new conversation"
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+            NEW_CHAT
+          </button>
 
-      {/* Main Content - Improved Dividers */}
+          {employee && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-brand-accent-50 rounded-xl border border-brand-accent-100">
+              <div className="w-8 h-8 rounded-full bg-brand-accent-600 flex items-center justify-center text-white font-bold text-xs">
+                {employee.name?.charAt(0) || 'E'}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-light-text">{employee.name}</span>
+                <span className="text-[10px] text-light-text-secondary">{employee.title || employee.email}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 4-Pane Layout with Resizable Panels */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sessions Sidebar */}
+        {/* Far Left: Chat History Sidebar (Collapsible) */}
         <ChatHistorySidebar
           sessions={chatHistory}
           currentSessionId={sessionId}
-          onNewChat={async () => {
-            const newId = await createNewSession();
-            setProcessCards([]);
-            setAllFiles([]);
-            setPinnedFiles([]);
-            setOutputArtifacts([]);
-            setActiveArtifact(null);
-            setChatMessages([]);
-            deleteSessionData(sessionId);
-            return newId;
-          }}
-          onSelectSession={(selectedId) => {
-            if (selectedId === sessionId) return;
-            const sessionData = selectSessionHandler(selectedId);
-            const loadedFiles = sessionData?.allFiles || [];
-            setProcessCards(sessionData?.processCards || []);
-            setAllFiles(loadedFiles);
-            setPinnedFiles([]);
-            setOutputArtifacts(loadedFiles.filter((f) => f.isOutput));
-            setActiveArtifact(loadedFiles[0] || null);
-            setChatMessages([]);
-          }}
-          onDeleteSession={async (deleteId) => {
-            const wasCurrentSession = deleteId === sessionId;
-            await deleteSessionHandler(deleteId);
-            if (wasCurrentSession) {
-              setProcessCards([]);
-              setAllFiles([]);
-              setPinnedFiles([]);
-              setOutputArtifacts([]);
-              setActiveArtifact(null);
-              setChatMessages([]);
-            }
-          }}
-          isCollapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(prev => !prev)}
+          onSelectSession={handleSelectSession}
+          onNewChat={handleNewChat}
+          onDeleteSession={handleDeleteSession}
+          isCollapsed={historyCollapsed}
+          onToggleCollapse={toggleHistorySidebar}
         />
 
-        {/* Left: Files */}
-        <div style={{ width: `${leftWidth}px` }} className="shrink-0 bg-white overflow-hidden flex flex-col">
+        {/* Left: File Upload Sidebar */}
+        <div style={{ width: `${leftSidebarWidth}px` }} className="shrink-0 overflow-hidden">
           <FileUploadSidebar
             sessionId={sessionId}
             uploadedFiles={uploadedFiles}
             isUploading={isUploading}
-            onUploadFiles={uploadFilesHandler}
-            onRemoveFile={handleRemoveFile}
-            maxFiles={10}
-            acceptedTypes={acceptedTypes}
-            demoMode={sectionKey}
+            onUploadFiles={uploadFiles}
+            onRemoveFile={(filename) => removeFile(filename)}
+            demoMode={demoMode}
           />
         </div>
 
-        {/* Modern Resize Divider Left */}
-        <div 
-          onMouseDown={() => setIsResizingLeft(true)}
-          className={`w-1.5 cursor-col-resize flex-shrink-0 transition-all group relative z-10 ${
+        {/* Resize Divider - Left */}
+        <div
+          onMouseDown={startResizingLeft}
+          className={`w-3 h-full cursor-col-resize flex-shrink-0 transition-colors z-30 group relative ${
             isResizingLeft ? 'bg-brand-accent-100/30' : 'bg-transparent hover:bg-brand-accent-50'
           }`}
         >
           <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] transition-colors ${
-            isResizingLeft ? 'bg-brand-accent-600' : 'bg-light-border group-hover:bg-brand-accent-300'
+            isResizingLeft ? 'bg-brand-accent-600 w-[2px]' : 'bg-brand-accent-200 group-hover:bg-brand-accent-400'
           }`} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 flex items-center justify-center">
+            <div className={`w-1 h-4 rounded-full ${
+              isResizingLeft ? 'bg-brand-accent-600' : 'bg-brand-accent-100 group-hover:bg-brand-accent-300'
+            }`} />
+          </div>
         </div>
 
-        {/* Middle: Preview */}
-        <div className="flex-1 min-w-0 bg-[#FAFAF9] flex flex-col shadow-[inset_0_0_20px_0_rgba(0,0,0,0.015)]">
+        {/* Center: Document Viewer */}
+        <div className="flex-1 min-w-0 overflow-hidden">
           <DocumentViewer
-            documents={allFiles}
+            documents={allDocuments}
             activeArtifact={activeArtifact}
             artifactContent={artifactContent}
             currentPage={currentPage}
@@ -1185,78 +790,60 @@ const UnifiedSectionEditor = ({
             documentPreviewLoading={documentPreviewLoading}
             setDocumentPreviewLoading={setDocumentPreviewLoading}
             previewLoading={previewLoading}
+            onPreview={handlePreview}
+            onRemoveFile={handleRemoveFile}
+            onOpenCanvas={handleOpenCanvas}
+            demoMode={demoMode}
             videoLoadError={videoLoadError}
             setVideoLoadError={setVideoLoadError}
-            onPreview={selectArtifact}
-            onDownload={(doc) => window.open(getFileUrl(doc.filename))}
-            onRemoveFile={handleRemoveFile}
-            onOpenCanvas={(file) => {
-              navigate('/editor', {
-                state: {
-                  file,
-                  returnTo: location.pathname + location.search
-                }
-              });
-            }}
-            viewMode="grid"
-            demoMode={sectionKey}
             webModeEnabled={webModeEnabled}
-            onToggleWebMode={() => setWebModeEnabled(prev => !prev)}
+            onToggleWebMode={handleToggleWebMode}
             isEnhancing={isEnhancing}
             onEnhanceWithImages={handleEnhanceWithImages}
           />
         </div>
 
-        {/* Modern Resize Divider Right */}
-        <div 
-          onMouseDown={() => setIsResizingRight(true)}
-          className={`w-1.5 cursor-col-resize flex-shrink-0 transition-all group relative z-10 ${
+        {/* Resize Divider - Right */}
+        <div
+          onMouseDown={startResizingRight}
+          className={`w-3 h-full cursor-col-resize flex-shrink-0 transition-colors z-30 group relative ${
             isResizingRight ? 'bg-brand-accent-100/30' : 'bg-transparent hover:bg-brand-accent-50'
           }`}
         >
           <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] transition-colors ${
-            isResizingRight ? 'bg-brand-accent-600' : 'bg-light-border group-hover:bg-brand-accent-300'
+            isResizingRight ? 'bg-brand-accent-600 w-[2px]' : 'bg-brand-accent-200 group-hover:bg-brand-accent-400'
           }`} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-8 flex items-center justify-center">
+            <div className={`w-1 h-4 rounded-full ${
+              isResizingRight ? 'bg-brand-accent-600' : 'bg-brand-accent-100 group-hover:bg-brand-accent-300'
+            }`} />
+          </div>
         </div>
 
-        {/* Right: AI Chat */}
-        <div style={{ width: `${rightWidth}px` }} className="shrink-0 bg-white flex flex-col overflow-hidden">
+        {/* Right: AI Chat Sidebar */}
+        <div style={{ width: `${rightSidebarWidth}px` }} className="shrink-0 overflow-hidden">
           <AIChatSidebar
             sessionId={sessionId}
-            contextFiles={[...new Set([
-              ...pinnedFiles.map(f => f.filename),
-              ...uploadedFiles.map(f => f.filename),
-              ...outputArtifacts.slice(-10).map(f => f.filename)
-            ])]}
+            contextFiles={uploadedFiles.map((f) => f.filename)}
             onSendMessage={handleSendMessage}
-            messages={chatMessages}
-            isLoading={isProcessing}
             isProcessing={isProcessing}
             suggestions={suggestions}
-            demoMode={sectionKey}
-            templateId={selectedTemplate?.id || null}
-            onClearTemplate={() => setSelectedTemplate(null)}
+            demoMode={demoMode}
+            templateId={templateId}
+            onClearTemplate={handleClearTemplate}
             enhancementCards={enhancementCards}
-            onViewEnhancedFile={(filename) => {
-              const file = allFiles.find(f => f.filename === filename);
-              if (file) selectArtifact(file);
-            }}
             setProcessCards={setProcessCards}
             processCards={processCards}
-            onToggleCard={handleToggleCard}
             onRetry={handleRetry}
             onStopGeneration={handleStopGeneration}
             uploadedFiles={uploadedFiles}
-            onRemoveFile={handleRemoveFile}
-            onUploadFiles={uploadFilesHandler}
-            acceptedTypes={acceptedTypes}
+            onRemoveFile={(file) => removeFile(file.filename)}
+            onUploadFiles={uploadFiles}
             webModeEnabled={webModeEnabled}
-            onToggleWebMode={() => setWebModeEnabled(prev => !prev)}
+            onToggleWebMode={handleToggleWebMode}
           />
         </div>
       </div>
     </div>
   );
-};
-
-export default UnifiedSectionEditor;
+}

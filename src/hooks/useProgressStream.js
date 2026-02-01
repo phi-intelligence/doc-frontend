@@ -148,7 +148,7 @@ export const useProgressStream = (sessionId) => {
                 if (codeIdx !== -1) {
                     // If streaming, append. If full block update (which backend currently does), replace.
                     // Our backend currently sends the FULL block in code_output for code generation,
-                    // but might send chunks for other things. 
+                    // but might send chunks for other things.
                     // Safe approach: if event.output is significantly longer, assume replacement/append
 
                     if (event.is_streaming) {
@@ -161,7 +161,9 @@ export const useProgressStream = (sessionId) => {
                         ...currentItems[codeIdx],
                         status: event.status,
                         duration: event.duration,
-                        language: event.language || currentItems[codeIdx].language  // Preserve language
+                        language: event.language || currentItems[codeIdx].language,  // Preserve language
+                        // Store content snippets for document content cards (if present)
+                        content_snippets: event.content_snippets || currentItems[codeIdx].content_snippets
                     };
                     updated = true;
                 }

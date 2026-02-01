@@ -18,7 +18,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 const EditorPage = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { sessionId } = useSession();
+    
+    // Use sessionId from navigation state if provided, otherwise fall back to hook
+    const { sessionId: hookSessionId } = useSession();
+    const sessionId = location.state?.sessionId || hookSessionId;
+    
     const editorRef = useRef(null);
 
     // Get file from location state
@@ -147,8 +151,8 @@ const EditorPage = () => {
             <header className="h-16 border-b border-light-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 z-30 shrink-0 shadow-[0_1px_3px_0_rgba(0,0,0,0.02)]">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-brand-accent-600 rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent-100/50">
-                            <img src="/logophi_brown.png" alt="Phi" className="w-6 h-6 object-contain brightness-0 invert" />
+                        <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-lg shadow-brand-accent-100/50 border border-gray-100">
+                            <img src="/genX.png" alt="GendocX" className="w-6 h-6 object-contain" />
                         </div>
                         <div className="flex flex-col">
                             <span className="text-xs font-black text-light-text tracking-tighter leading-none">PHI <span className="text-brand-accent-600">DOCS</span></span>
@@ -311,8 +315,8 @@ const EditorPage = () => {
                             </p>
 
                             <div className="flex items-center gap-2 p-3 bg-brand-accent-50/50 rounded-xl border border-brand-accent-100/50">
-                                <div className="w-8 h-8 bg-brand-accent-100 rounded-lg flex items-center justify-center">
-                                    <img src="/logophi_brown.png" alt="Phi" className="w-5 h-5 object-contain" />
+                                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-100">
+                                    <img src="/genX.png" alt="GendocX" className="w-5 h-5 object-contain" />
                                 </div>
                                 <p className="text-xs text-brand-accent-600 font-medium">
                                     Saving updates PhiAI's understanding of your document

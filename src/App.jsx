@@ -8,23 +8,37 @@ import EditorPage from './pages/EditorPage';
 import HRIntegrationPage from './pages/HRIntegrationPage';
 import FinancialManagementPage from './pages/FinancialManagementPage';
 import ProtectedRoute from './auth/ProtectedRoute';
+import { useAuth } from './auth/AuthContext';
 import AppShell from './pages/app/AppShell';
 import DashboardPage from './pages/app/DashboardPage';
 import HRDashboard from './pages/app/hr/HRDashboard';
-import HRSectionEditor from './pages/app/hr/HRSectionEditor';
+import RoleEditorPage from './pages/app/shared/RoleEditorPage';
 import EmployeesDirectory from './pages/app/hr/EmployeesDirectory';
 import OnboardingQueue from './pages/app/hr/OnboardingQueue';
 import OnboardingDetail from './pages/app/hr/OnboardingDetail';
+import OnboardingNew from './pages/app/hr/OnboardingNew';
+import CandidatesList from './pages/app/hr/CandidatesList';
+import CandidateDetail from './pages/app/hr/CandidateDetail';
+import CandidateNew from './pages/app/hr/CandidateNew';
 import FinanceDashboard from './pages/app/finance/FinanceDashboard';
-import FinanceSectionEditor from './pages/app/finance/FinanceSectionEditor';
 import ReportsQueue from './pages/app/finance/ReportsQueue';
 import ReportDetail from './pages/app/finance/ReportDetail';
 import LegalDashboard from './pages/app/legal/LegalDashboard';
-import LegalSectionEditor from './pages/app/legal/LegalSectionEditor';
 import DocsDashboard from './pages/app/DocsDashboard';
 import ChatWorkspacePage from './pages/app/ChatWorkspacePage';
+import MarketingDashboard from './pages/app/marketing/MarketingDashboard';
 
 import './index.css';
+
+/** Redirect /app to /app/dashboard or /app/{module} based on user.module */
+function AppIndexRedirect() {
+  const { user } = useAuth();
+  const module = user?.module;
+  if (module && ['hr', 'finance', 'legal', 'marketing'].includes(module)) {
+    return <Navigate to={`/app/${module}`} replace />;
+  }
+  return <Navigate to="/app/dashboard" replace />;
+}
 
 /**
  * App - Main application component with routing
@@ -46,10 +60,20 @@ function App() {
         {/* Connect - Redirect to chat with connect skill */}
         <Route path="/connect" element={<Navigate to="/chat?skill=connect" replace />} />
 
-        {/* Demo Sections */}
-        <Route path="/demo/hr" element={<Navigate to="/app/hr/editor" replace />} />
-        <Route path="/demo/finance" element={<Navigate to="/app/finance/editor" replace />} />
-        <Route path="/demo/legal" element={<Navigate to="/app/legal/editor" replace />} />
+        {/* Demo Sections - redirect to standalone editor routes */}
+        <Route path="/demo/hr" element={<Navigate to="/hr/editor" replace />} />
+        <Route path="/demo/finance" element={<Navigate to="/finance/editor" replace />} />
+        <Route path="/demo/legal" element={<Navigate to="/legal/editor" replace />} />
+        <Route path="/demo/marketing" element={<Navigate to="/marketing/editor" replace />} />
+
+        {/* Standalone Editor Routes (full-page, outside AppShell) */}
+        <Route path="/hr/editor" element={<ProtectedRoute><RoleEditorPage module="hr" /></ProtectedRoute>} />
+        <Route path="/finance/editor" element={<ProtectedRoute><RoleEditorPage module="finance" /></ProtectedRoute>} />
+        <Route path="/legal/editor" element={<ProtectedRoute><RoleEditorPage module="legal" /></ProtectedRoute>} />
+        <Route path="/marketing/editor" element={<ProtectedRoute><RoleEditorPage module="marketing" /></ProtectedRoute>} />
+
+        {/* General Page (standalone, protected) - Full ChatPage experience */}
+        <Route path="/general" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
 
         {/* Company App (protected) */}
         <Route
@@ -66,23 +90,31 @@ function App() {
           {/* HR Workspace */}
           <Route path="hr" element={<HRDashboard />} />
           <Route path="hr/employees" element={<EmployeesDirectory />} />
-          <Route path="hr/editor" element={<HRSectionEditor />} />
+          <Route path="hr/candidates" element={<CandidatesList />} />
+          <Route path="hr/candidates/new" element={<CandidateNew />} />
+          <Route path="hr/candidates/:id" element={<CandidateDetail />} />
+          {/* HR editor moved to standalone route /hr/editor */}
           <Route path="hr/onboarding" element={<OnboardingQueue />} />
+          <Route path="hr/onboarding/new" element={<OnboardingNew />} />
           <Route path="hr/onboarding/:id" element={<OnboardingDetail />} />
 
           {/* Finance Workspace */}
           <Route path="finance" element={<FinanceDashboard />} />
-          <Route path="finance/editor" element={<FinanceSectionEditor />} />
+          {/* Finance editor moved to standalone route /finance/editor */}
           <Route path="finance/reports" element={<ReportsQueue />} />
           <Route path="finance/reports/:id" element={<ReportDetail />} />
 
           {/* Legal Workspace */}
           <Route path="legal" element={<LegalDashboard />} />
-          <Route path="legal/editor" element={<LegalSectionEditor />} />
+          {/* Legal editor moved to standalone route /legal/editor */}
           
           <Route path="docs" element={<DocsDashboard />} />
 
-          <Route index element={<Navigate to="/app/dashboard" replace />} />
+          {/* Marketing (sidebar entry for module users) */}
+          <Route path="marketing" element={<MarketingDashboard />} />
+          {/* Marketing editor moved to standalone route /marketing/editor */}
+
+          <Route index element={<AppIndexRedirect />} />
         </Route>
 
         {/* Fallback - redirect to landing page */}
