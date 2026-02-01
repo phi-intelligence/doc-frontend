@@ -409,4 +409,3 @@ export default function RoleEditorPage({ module: moduleProp = 'general', section
     </div>
   );
 }
-

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Sparkles, Menu, X, ArrowRight, Shield, Zap, Globe } from 'lucide-react';
+import { Sparkles, Menu, X, ArrowRight, Shield, Zap, Globe, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { useAuth } from '../auth/AuthContext';
@@ -135,12 +135,21 @@ const LandingPage = () => {
                   Dashboard
                 </button>
               ) : (
-                <Link
-                  to="/chat"
-                  className="hidden md:flex items-center gap-3 px-8 py-3.5 bg-brand-accent-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand-accent-700 shadow-2xl shadow-brand-accent-600/20 transition-all"
-                >
-                  Get Started
-                </Link>
+                <>
+                  <Link
+                    to="/register"
+                    className="hidden md:flex items-center gap-3 px-6 py-3.5 bg-white border-2 border-brand-accent-600 text-brand-accent-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand-accent-50 transition-all"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    Register Company
+                  </Link>
+                  <Link
+                    to="/chat"
+                    className="hidden md:flex items-center gap-3 px-8 py-3.5 bg-brand-accent-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand-accent-700 shadow-2xl shadow-brand-accent-600/20 transition-all"
+                  >
+                    Get Started
+                  </Link>
+                </>
               )}
               
               <button 
@@ -173,9 +182,18 @@ const LandingPage = () => {
                     {link.name}
                   </a>
                 ))}
-                <div className="pt-4">
+                <div className="pt-4 space-y-3">
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-center gap-3 w-full py-5 bg-white border-2 border-brand-accent-600 text-brand-accent-600 rounded-2xl font-black text-sm uppercase tracking-widest"
+                  >
+                    <Building2 className="w-5 h-5" />
+                    Register Company
+                  </Link>
                   <Link
                     to="/chat"
+                    onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center justify-center gap-3 w-full py-5 bg-brand-accent-600 text-white rounded-2xl font-black text-sm uppercase tracking-widest"
                   >
                     Get Started Free

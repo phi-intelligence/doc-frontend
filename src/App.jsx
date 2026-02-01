@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import ChatPage from './pages/ChatPage';
 import EditorPage from './pages/EditorPage';
+import CompanyRegistrationPage from './pages/CompanyRegistrationPage';
 import HRIntegrationPage from './pages/HRIntegrationPage';
 import FinancialManagementPage from './pages/FinancialManagementPage';
 import ProtectedRoute from './auth/ProtectedRoute';
@@ -49,6 +50,9 @@ function App() {
       <Routes>
         {/* Landing Page - Tools Grid */}
         <Route path="/" element={<LandingPage />} />
+
+        {/* Company Registration */}
+        <Route path="/register" element={<CompanyRegistrationPage />} />
 
         {/* Chatbot Interface - supports ?skill= query param */}
         <Route path="/chat" element={<ChatPage />} />
