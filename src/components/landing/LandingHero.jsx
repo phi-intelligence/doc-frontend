@@ -41,7 +41,7 @@ export default function LandingHero({
       </div>
 
       {/* Hero Area - Two Column Layout */}
-      <div className="relative flex items-center pt-16 pb-8">
+      <div className="relative flex items-center pt-10 pb-4">
         <div className="w-full max-w-7xl mx-auto px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center">
             
@@ -69,7 +69,7 @@ export default function LandingHero({
       </div>
 
       {/* Login / Role Section */}
-      <div className="relative bg-white py-24 border-t border-light-border">
+      <div className="relative bg-white py-12 border-t border-light-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             {/* Left: Content */}

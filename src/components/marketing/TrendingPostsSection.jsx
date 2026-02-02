@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -27,9 +26,12 @@ import {
   Copy,
   Check,
   Facebook,
-  Instagram
+  Instagram,
+  Save,
+  CheckCircle
 } from 'lucide-react';
 import { getTrendingPosts, getTrendCategories, refreshTrends } from '../../api/marketing';
+import apiClient from '../../api/index';
 
 // Source icons mapping
 const SOURCE_ICONS = {
@@ -181,12 +183,14 @@ const CHANNEL_OPTIONS = [
  * PostPreviewModal - Fullscreen modal for viewing post details and creating new posts
  */
 const PostPreviewModal = ({ post, onClose, onGeneratePost }) => {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('preview'); // 'preview' or 'editor'
   const [selectedChannel, setSelectedChannel] = useState('linkedin');
   const [draftContent, setDraftContent] = useState('');
   const [copied, setCopied] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   
   if (!post) return null;
   
@@ -229,20 +233,35 @@ const PostPreviewModal = ({ post, onClose, onGeneratePost }) => {
     }
   };
   
-  // Open in full editor with draft content
-  const handleOpenInEditor = () => {
-    navigate('/app/marketing/editor', {
-      state: {
-        initialPrompt: draftContent || `Create an engaging post based on: ${post.title}`,
-        context: {
-          trendingPost: post,
-          source: 'trending_posts',
-          channel: selectedChannel,
-          draftContent: draftContent
-        }
-      }
-    });
-    onClose();
+  // Save draft as a content calendar item
+  const handleSaveDraft = async () => {
+    if (!draftContent.trim()) {
+      setSaveError('Please write some content first');
+      return;
+    }
+    
+    setSaving(true);
+    setSaveError(null);
+    
+    try {
+      await apiClient.post('/marketing/content', {
+        title: `Post from: ${post.title?.slice(0, 50)}...`,
+        description: `Inspired by trending topic: ${post.title}`,
+        content_type: 'social_post',
+        channel: selectedChannel,
+        content: draftContent,
+      });
+      
+      setSaved(true);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to save draft:', err);
+      setSaveError('Failed to save draft. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
   
   // Quick template suggestions
@@ -465,11 +484,18 @@ const PostPreviewModal = ({ post, onClose, onGeneratePost }) => {
                     {copied ? 'Copied!' : 'Copy'}
                   </button>
                   <button
-                    onClick={handleOpenInEditor}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 font-medium rounded-xl border border-gray-200 transition-colors ml-auto"
+                    onClick={handleSaveDraft}
+                    disabled={saving || !draftContent.trim()}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50 ml-auto"
                   >
-                    <FileText className="w-4 h-4" />
-                    Full Editor
+                    {saving ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : saved ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Draft'}
                   </button>
                 </div>
               </div>
@@ -501,20 +527,32 @@ const PostPreviewModal = ({ post, onClose, onGeneratePost }) => {
               </>
             ) : (
               <>
+                {saveError && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-700 rounded-lg text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    {saveError}
+                  </div>
+                )}
                 <button
                   onClick={() => setActiveTab('preview')}
                   className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-gray-100 text-gray-700 font-medium rounded-xl border border-gray-200 transition-colors"
                 >
                   <Eye className="w-4 h-4" />
-                  Back to Preview
+                  Back
                 </button>
                 <button
-                  onClick={handleOpenInEditor}
-                  disabled={!draftContent}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
+                  onClick={handleSaveDraft}
+                  disabled={saving || !draftContent.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors disabled:opacity-50"
                 >
-                  <Send className="w-4 h-4" />
-                  Continue in Editor
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : saved ? (
+                    <CheckCircle className="w-4 h-4" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  {saving ? 'Saving...' : saved ? 'Saved to Calendar!' : 'Save to Calendar'}
                 </button>
               </>
             )}
@@ -555,7 +593,6 @@ const LoadingSkeleton = () => (
  * TrendingPostsSection - Main component for displaying trending posts
  */
 const TrendingPostsSection = ({ onGeneratePost: externalOnGeneratePost }) => {
-  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -615,7 +652,7 @@ const TrendingPostsSection = ({ onGeneratePost: externalOnGeneratePost }) => {
     }
   }, [activeCategory]);
   
-  // Handle generate post - navigate to editor with prompt
+  // Handle generate post - open the preview modal with editor tab
   const handleGeneratePost = useCallback((post) => {
     // Use external handler if provided
     if (externalOnGeneratePost) {
@@ -623,27 +660,9 @@ const TrendingPostsSection = ({ onGeneratePost: externalOnGeneratePost }) => {
       return;
     }
     
-    // Default behavior: navigate to editor with initial prompt
-    const prompt = `Create an engaging social media post inspired by this trending topic:
-
-Title: ${post.title}
-
-Key Points: ${post.content?.slice(0, 500) || 'N/A'}
-
-Source: ${post.source}
-
-Please create a professional, engaging post suitable for our brand's voice. Include relevant hashtags and a call to action.`;
-    
-    navigate('/app/marketing/editor', {
-      state: {
-        initialPrompt: prompt,
-        context: {
-          trendingPost: post,
-          source: 'trending_posts'
-        }
-      }
-    });
-  }, [navigate, externalOnGeneratePost]);
+    // Default behavior: open the preview modal (user can use editor tab to create post)
+    setPreviewPost(post);
+  }, [externalOnGeneratePost]);
   
   // Scroll handlers
   const canScrollLeft = scrollPosition > 0;

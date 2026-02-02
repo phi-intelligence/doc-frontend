@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { 
   Building2, Globe, Mail, Phone, MapPin, Edit2, Check, X, 
-  ArrowLeft, ArrowRight, Plus, Trash2, Image as ImageIcon
+  ArrowLeft, ArrowRight, Plus, Trash2, ChevronDown, ChevronRight,
+  FileText, Info, Users, Briefcase, BookOpen, ExternalLink, Tag,
+  Hash, Link2, CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -39,10 +41,22 @@ const socialIcons = {
   ),
 };
 
+// Content type configuration
+const contentTypeConfig = {
+  main: { icon: Globe, color: 'bg-blue-500', label: 'Homepage' },
+  about: { icon: Info, color: 'bg-purple-500', label: 'About' },
+  contact: { icon: Phone, color: 'bg-green-500', label: 'Contact' },
+  team: { icon: Users, color: 'bg-orange-500', label: 'Team' },
+  services: { icon: Briefcase, color: 'bg-cyan-500', label: 'Services' },
+  careers: { icon: Users, color: 'bg-pink-500', label: 'Careers' },
+  blog: { icon: BookOpen, color: 'bg-amber-500', label: 'Blog' },
+  default: { icon: FileText, color: 'bg-gray-500', label: 'Page' },
+};
+
 /**
  * Editable text field component
  */
-const EditableField = ({ value, onChange, placeholder, multiline = false, label }) => {
+const EditableField = ({ value, onChange, placeholder, multiline = false }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value || '');
 
@@ -237,9 +251,187 @@ const EditableListField = ({ label, icon: Icon, items = [], onChange, placeholde
 };
 
 /**
+ * Stats bar showing extracted data counts
+ */
+const StatsBar = ({ profile, pages = [] }) => {
+  const emailCount = profile?.contact_info?.emails?.length || 0;
+  const phoneCount = profile?.contact_info?.phones?.length || 0;
+  const socialCount = profile?.social_links ? Object.keys(profile.social_links).length : 0;
+  const pageCount = pages?.length || profile?.scraped_pages || 0;
+
+  const stats = [
+    { label: 'Pages Scraped', value: pageCount, icon: FileText, color: 'text-blue-600 bg-blue-100' },
+    { label: 'Emails Found', value: emailCount, icon: Mail, color: 'text-green-600 bg-green-100' },
+    { label: 'Phone Numbers', value: phoneCount, icon: Phone, color: 'text-orange-600 bg-orange-100' },
+    { label: 'Social Links', value: socialCount, icon: Link2, color: 'text-purple-600 bg-purple-100' },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {stats.map((stat, index) => (
+        <motion.div
+          key={stat.label}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 }}
+          className="bg-white rounded-xl border border-light-border p-3 flex items-center gap-3"
+        >
+          <div className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center`}>
+            <stat.icon className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xl font-black text-light-text">{stat.value}</div>
+            <div className="text-xs text-light-text-secondary">{stat.label}</div>
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
+/**
+ * Scraped page card in the gallery
+ */
+const ScrapedPageCard = ({ page, index }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const contentType = page.content_type || 'default';
+  const config = contentTypeConfig[contentType] || contentTypeConfig.default;
+  const Icon = config.icon;
+
+  // Truncate content for preview
+  const contentPreview = page.content?.slice(0, 200) || '';
+  const hasMoreContent = page.content?.length > 200;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      className="bg-white rounded-xl border border-light-border overflow-hidden hover:border-brand-accent-300 transition-all"
+    >
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-4 flex items-start gap-3 text-left"
+      >
+        <div className={`flex-shrink-0 w-10 h-10 rounded-lg ${config.color} flex items-center justify-center text-white`}>
+          <Icon className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-light-surface text-light-text-secondary">
+              {config.label}
+            </span>
+          </div>
+          <h4 className="font-bold text-light-text text-sm truncate">
+            {page.title || 'Untitled Page'}
+          </h4>
+          {page.url && (
+            <a
+              href={page.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-brand-accent-600 hover:text-brand-accent-700 flex items-center gap-1 mt-1"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span className="truncate">{new URL(page.url).pathname}</span>
+            </a>
+          )}
+        </div>
+        <div className="flex-shrink-0 text-light-text-secondary">
+          {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+        </div>
+      </button>
+
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 border-t border-light-border pt-3">
+              <p className="text-sm text-light-text-secondary leading-relaxed">
+                {contentPreview}
+                {hasMoreContent && '...'}
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+/**
+ * Scraped Pages Gallery Section
+ */
+const ScrapedPagesGallery = ({ pages = [] }) => {
+  const [showAll, setShowAll] = useState(false);
+  
+  if (!pages || pages.length === 0) return null;
+
+  const displayedPages = showAll ? pages : pages.slice(0, 4);
+  const hasMore = pages.length > 4;
+
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="text-sm font-bold text-light-text-secondary uppercase tracking-wide flex items-center gap-2">
+          <FileText className="w-4 h-4" />
+          Scraped Pages ({pages.length})
+        </h4>
+        {hasMore && (
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="text-xs font-bold text-brand-accent-600 hover:text-brand-accent-700"
+          >
+            {showAll ? 'Show Less' : `Show All (${pages.length})`}
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {displayedPages.map((page, index) => (
+          <ScrapedPageCard key={page.url || index} page={page} index={index} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Services section extracted from services pages
+ */
+const ServicesSection = ({ pages = [] }) => {
+  const servicesPages = pages?.filter(p => p.content_type === 'services') || [];
+  
+  if (servicesPages.length === 0) return null;
+
+  // Extract service keywords from content
+  const serviceContent = servicesPages.map(p => p.content).join(' ');
+  
+  return (
+    <div className="mt-6">
+      <h4 className="text-sm font-bold text-light-text-secondary uppercase tracking-wide mb-3 flex items-center gap-2">
+        <Briefcase className="w-4 h-4" />
+        Services Detected
+      </h4>
+      <div className="bg-cyan-50 rounded-xl p-4 border border-cyan-200">
+        <p className="text-sm text-cyan-800 leading-relaxed">
+          {serviceContent.slice(0, 300)}
+          {serviceContent.length > 300 && '...'}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Profile preview component showing extracted/entered company data
  */
-const ProfilePreview = ({ profile, onEdit, onContinue, onBack }) => {
+const ProfilePreview = ({ profile, pages = [], onEdit, onContinue, onBack }) => {
   const [editingName, setEditingName] = useState(false);
   const [editedName, setEditedName] = useState(profile?.name || '');
 
@@ -268,18 +460,6 @@ const ProfilePreview = ({ profile, onEdit, onContinue, onBack }) => {
     }
   };
 
-  const handleUpdateSocialLink = (platform, value) => {
-    if (onEdit) {
-      const newLinks = { ...profile.social_links };
-      if (value) {
-        newLinks[platform] = value;
-      } else {
-        delete newLinks[platform];
-      }
-      onEdit({ ...profile, social_links: newLinks });
-    }
-  };
-
   if (!profile) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -293,205 +473,278 @@ const ProfilePreview = ({ profile, onEdit, onContinue, onBack }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="space-y-6"
+      className="max-w-6xl mx-auto px-4"
     >
       {/* Header with Back Button */}
-      <div className="flex items-center gap-4">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="p-2 rounded-xl text-light-text-secondary hover:text-light-text hover:bg-light-surface transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-        )}
-        <div>
-          <h2 className="text-2xl font-black text-light-text">
-            Company Profile
-          </h2>
-          <p className="text-light-text-secondary">
-            Review and edit your company information
-          </p>
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-6">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="p-3 rounded-2xl bg-white border border-light-border text-light-text-secondary hover:text-brand-accent-600 hover:border-brand-accent-200 hover:shadow-lg transition-all"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
+          <div>
+            <h2 className="text-3xl font-black text-light-text tracking-tight">
+              Entity Review
+            </h2>
+            <p className="text-light-text-secondary font-medium mt-1">
+              Verify extracted intelligence before finalizing your workspace.
+            </p>
+          </div>
+        </div>
+        
+        {/* Status Badge */}
+        <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 rounded-full">
+           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+           <span className="text-xs font-bold text-green-700 uppercase tracking-wider">Analysis Complete</span>
         </div>
       </div>
 
-      {/* Main Card */}
-      <div className="bg-light-surface rounded-3xl border border-light-border p-8 shadow-soft">
-        {/* Logo and Name */}
-        <div className="flex items-start gap-6 mb-8">
-          {/* Logo */}
-          <div className="flex-shrink-0 w-20 h-20 rounded-2xl bg-white flex items-center justify-center overflow-hidden border border-light-border group relative">
-            {profile.logo_url || profile.logo_path || profile.logo_base64 ? (
-              <img
-                src={profile.logo_url || profile.logo_path || profile.logo_base64}
-                alt={profile.name}
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                }}
-              />
-            ) : (
-              <Building2 className="w-10 h-10 text-light-text-secondary/50" />
-            )}
-          </div>
+      {/* Stats Bar */}
+      <div className="mb-8">
+        <StatsBar profile={profile} pages={pages} />
+      </div>
 
-          {/* Name */}
-          <div className="flex-1">
-            {editingName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  className="flex-1 px-3 py-2 text-2xl font-black bg-white border-2 border-brand-accent-500 rounded-xl focus:outline-none"
-                  autoFocus
+      {/* Main Content - Two Column Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Left Column - Core Info */}
+        <div className="xl:col-span-2 space-y-8">
+          {/* Main Card */}
+          <div className="bg-white rounded-[32px] border border-light-border p-8 shadow-sm">
+            {/* Logo and Name */}
+            <div className="flex flex-col sm:flex-row items-start gap-8 mb-8 pb-8 border-b border-light-border/50">
+              {/* Logo */}
+              <div className="flex-shrink-0 w-32 h-32 rounded-[24px] bg-light-surface flex items-center justify-center overflow-hidden border border-light-border shadow-inner p-4">
+                {profile.logo_url || profile.logo_path || profile.logo_base64 ? (
+                  <img
+                    src={profile.logo_url || profile.logo_path || profile.logo_base64}
+                    alt={profile.name}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                ) : (
+                  <Building2 className="w-12 h-12 text-light-text-secondary/30" />
+                )}
+              </div>
+
+              {/* Name */}
+              <div className="flex-1 min-w-0 pt-2">
+                {editingName ? (
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      className="flex-1 px-4 py-3 text-2xl font-black bg-white border-2 border-brand-accent-500 rounded-xl focus:outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveName}
+                      className="p-3 rounded-xl bg-brand-accent-500 text-white hover:bg-brand-accent-600 shadow-lg shadow-brand-accent-500/20"
+                    >
+                      <Check className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditedName(profile.name || '');
+                        setEditingName(false);
+                      }}
+                      className="p-3 rounded-xl bg-light-surface text-light-text-secondary hover:bg-light-border"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-4 group mb-2">
+                    <h3 className="text-3xl font-black text-light-text tracking-tight truncate">
+                      {profile.name || 'Unknown Company'}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setEditedName(profile.name || '');
+                        setEditingName(true);
+                      }}
+                      className="p-2 rounded-lg text-light-text-secondary opacity-0 group-hover:opacity-100 hover:bg-light-surface hover:text-brand-accent-600 transition-all"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                
+                {profile.tagline && (
+                  <p className="text-lg text-light-text-secondary font-medium mb-3 italic">"{profile.tagline}"</p>
+                )}
+                
+                <div className="flex flex-wrap items-center gap-4">
+                  {profile.website && (
+                    <a
+                      href={profile.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-brand-accent-50 text-brand-accent-700 text-sm font-bold border border-brand-accent-100 hover:bg-brand-accent-100 transition-colors"
+                    >
+                      <Globe className="w-3.5 h-3.5" />
+                      {profile.website}
+                    </a>
+                  )}
+                  {profile.industry && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-light-surface text-light-text-secondary text-sm font-bold border border-light-border">
+                       <Tag className="w-3.5 h-3.5" />
+                       {profile.industry}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="mb-8">
+              <h4 className="text-xs font-bold text-light-text-secondary uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Info className="w-4 h-4" />
+                About Organization
+              </h4>
+              <div className="bg-light-surface/50 rounded-2xl p-4 border border-light-border/50">
+                <EditableField
+                  value={profile.description}
+                  onChange={(value) => handleUpdateField('description', value)}
+                  placeholder="Add a detailed description about your company..."
+                  multiline
                 />
-                <button
-                  onClick={handleSaveName}
-                  className="p-2 rounded-lg bg-brand-accent-500 text-white hover:bg-brand-accent-600"
-                >
-                  <Check className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={() => {
-                    setEditedName(profile.name || '');
-                    setEditingName(false);
-                  }}
-                  className="p-2 rounded-lg bg-light-surface text-light-text-secondary hover:bg-light-border"
-                >
-                  <X className="w-5 h-5" />
-                </button>
               </div>
-            ) : (
-              <div className="flex items-center gap-3 group">
-                <h3 className="text-2xl font-black text-light-text">
-                  {profile.name || 'Unknown Company'}
-                </h3>
-                <button
-                  onClick={() => {
-                    setEditedName(profile.name || '');
-                    setEditingName(true);
-                  }}
-                  className="p-1.5 rounded-lg text-light-text-secondary opacity-0 group-hover:opacity-100 hover:bg-light-surface transition-all"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
+            </div>
+
+            {/* Contact Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-6">
+                 <h4 className="text-xs font-bold text-light-text-secondary uppercase tracking-widest flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Communication Channels
+                 </h4>
+                 
+                 <EditableListField
+                    label="Email Addresses"
+                    icon={Mail}
+                    items={profile.contact_info?.emails || []}
+                    onChange={(items) => handleUpdateContactInfo('emails', items)}
+                    placeholder="email@company.com"
+                  />
+
+                  <EditableListField
+                    label="Phone Numbers"
+                    icon={Phone}
+                    items={profile.contact_info?.phones || []}
+                    onChange={(items) => handleUpdateContactInfo('phones', items)}
+                    placeholder="+1 (555) 123-4567"
+                  />
               </div>
-            )}
-            {profile.tagline && (
-              <p className="text-light-text-secondary mt-1">{profile.tagline}</p>
-            )}
+              
+              <div className="space-y-6">
+                 <h4 className="text-xs font-bold text-light-text-secondary uppercase tracking-widest flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Locations
+                 </h4>
+                  <EditableListField
+                    label="Addresses"
+                    icon={MapPin}
+                    items={profile.contact_info?.addresses || []}
+                    onChange={(items) => handleUpdateContactInfo('addresses', items)}
+                    placeholder="123 Main St, City, State"
+                  />
+              </div>
+            </div>
+
+            {/* Social Links */}
+            <div className="mt-8 pt-8 border-t border-light-border/50">
+              <h4 className="text-xs font-bold text-light-text-secondary uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Globe className="w-4 h-4" />
+                Social Footprint
+              </h4>
+              <div className="flex flex-wrap gap-3">
+                {profile.social_links && Object.entries(profile.social_links).map(([platform, url]) => (
+                  <a
+                    key={platform}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-light-border text-light-text font-medium hover:border-brand-accent-300 hover:text-brand-accent-600 hover:shadow-md transition-all text-sm capitalize group"
+                  >
+                    <span className="text-light-text-secondary group-hover:text-brand-accent-600 transition-colors">
+                      {socialIcons[platform] || <Globe className="w-4 h-4" />}
+                    </span>
+                    {platform}
+                    <ExternalLink className="w-3 h-3 opacity-30 group-hover:opacity-100 transition-opacity ml-1" />
+                  </a>
+                ))}
+                {(!profile.social_links || Object.keys(profile.social_links).length === 0) && (
+                  <p className="text-light-text-secondary/50 text-sm italic px-4 py-2">No social links detected</p>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Services Section */}
+          <ServicesSection pages={pages} />
         </div>
 
-        {/* Description */}
-        <div className="mb-6">
-          <h4 className="text-sm font-bold text-light-text-secondary uppercase tracking-wide mb-2">
-            About
-          </h4>
-          <EditableField
-            value={profile.description}
-            onChange={(value) => handleUpdateField('description', value)}
-            placeholder="Add a description about your company..."
-            multiline
-          />
-        </div>
-
-        {/* Website */}
-        {profile.website && (
-          <div className="mb-6">
-            <h4 className="text-sm font-bold text-light-text-secondary uppercase tracking-wide mb-2">
-              Website
-            </h4>
-            <a
-              href={profile.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 text-brand-accent-600 hover:text-brand-accent-700 font-medium"
-            >
-              <Globe className="w-4 h-4" />
-              {profile.website}
-            </a>
-          </div>
-        )}
-
-        {/* Contact Info */}
-        <div className="mb-6 space-y-4">
-          <h4 className="text-sm font-bold text-light-text-secondary uppercase tracking-wide">
-            Contact Information
-          </h4>
-          
-          <EditableListField
-            label="Email Addresses"
-            icon={Mail}
-            items={profile.contact_info?.emails || []}
-            onChange={(items) => handleUpdateContactInfo('emails', items)}
-            placeholder="email@company.com"
-          />
-
-          <EditableListField
-            label="Phone Numbers"
-            icon={Phone}
-            items={profile.contact_info?.phones || []}
-            onChange={(items) => handleUpdateContactInfo('phones', items)}
-            placeholder="+1 (555) 123-4567"
-          />
-
-          <EditableListField
-            label="Addresses"
-            icon={MapPin}
-            items={profile.contact_info?.addresses || []}
-            onChange={(items) => handleUpdateContactInfo('addresses', items)}
-            placeholder="123 Main St, City, State"
-          />
-        </div>
-
-        {/* Social Links */}
-        <div>
-          <h4 className="text-sm font-bold text-light-text-secondary uppercase tracking-wide mb-3">
-            Social Media
-          </h4>
-          <div className="flex flex-wrap gap-3">
-            {profile.social_links && Object.entries(profile.social_links).map(([platform, url]) => (
-              <a
-                key={platform}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-light-border text-light-text hover:border-brand-accent-300 transition-colors shadow-sm"
-              >
-                {socialIcons[platform] || <Globe className="w-5 h-5" />}
-                <span className="capitalize">{platform}</span>
-              </a>
-            ))}
-            {(!profile.social_links || Object.keys(profile.social_links).length === 0) && (
-              <p className="text-light-text-secondary/50 text-sm italic">No social links added</p>
-            )}
-          </div>
+        {/* Right Column - Scraped Pages Gallery */}
+        <div className="xl:col-span-1 space-y-6">
+           <div className="bg-white rounded-[32px] border border-light-border p-6 shadow-sm sticky top-24">
+              <div className="flex items-center justify-between mb-6">
+                <h4 className="text-lg font-black text-light-text flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-brand-accent-600" />
+                  Source Data
+                </h4>
+                <span className="px-2 py-1 rounded-lg bg-light-surface text-xs font-bold text-light-text-secondary border border-light-border">
+                  {pages?.length || 0} Pages
+                </span>
+              </div>
+              
+              {pages && pages.length > 0 ? (
+                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                  {pages.map((page, index) => (
+                    <ScrapedPageCard key={page.url || index} page={page} index={index} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 px-4 rounded-2xl bg-light-surface/50 border border-dashed border-light-border">
+                  <div className="w-16 h-16 rounded-full bg-light-surface flex items-center justify-center mx-auto mb-4">
+                    <FileText className="w-8 h-8 text-light-text-secondary/30" />
+                  </div>
+                  <p className="text-sm font-medium text-light-text-secondary">
+                    No source pages available for preview.
+                  </p>
+                </div>
+              )}
+            </div>
         </div>
       </div>
 
       {/* Action Buttons */}
-      <div className="flex gap-4">
+      <div className="flex items-center gap-4 mt-8 pt-8 border-t border-light-border">
         {onBack && (
           <button
             onClick={onBack}
-            className="px-6 py-4 rounded-2xl font-bold text-light-text-secondary bg-light-surface hover:bg-light-border transition-all border border-transparent hover:border-light-border"
+            className="px-8 py-4 rounded-2xl font-bold text-light-text-secondary bg-white border border-light-border hover:bg-light-surface hover:text-light-text transition-all"
           >
-            Back
+            Go Back
           </button>
         )}
+        <div className="flex-1" />
         <button
           onClick={onContinue}
-          className="flex-1 flex items-center justify-center gap-3 px-8 py-4 bg-brand-accent-600 text-white rounded-2xl font-bold text-lg hover:bg-brand-accent-700 shadow-xl shadow-brand-accent-600/20 transition-all"
+          className="flex items-center gap-3 px-10 py-4 bg-brand-accent-600 text-white rounded-2xl font-black text-lg uppercase tracking-wide hover:bg-brand-accent-700 shadow-xl shadow-brand-accent-600/20 hover:shadow-brand-accent-600/30 hover:scale-[1.01] transition-all"
         >
-          Continue to Module Selection
+          Confirm Intelligence
           <ArrowRight className="w-5 h-5" />
         </button>
       </div>
     </motion.div>
   );
-
 };
 
 export default ProfilePreview;

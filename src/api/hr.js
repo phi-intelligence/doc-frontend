@@ -46,6 +46,6 @@ export async function listOnboarding() {
  * @param {{ status?: string, resource_type?: string, limit?: number }} params
  */
 export async function listApprovals(params = {}) {
-  const response = await apiClient.get('/approvals', { params });
+  const response = await apiClient.get('/approvals/requests', { params });
   return response.data;
 }

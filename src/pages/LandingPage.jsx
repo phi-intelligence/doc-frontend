@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 import { useAuth } from '../auth/AuthContext';
 import LandingHero from '../components/landing/LandingHero';
-import DepartmentFeatures from '../components/landing/DepartmentFeatures';
 import WorkflowSection from '../components/landing/WorkflowSection';
 import EditorShowcase from '../components/landing/EditorShowcase';
 
@@ -223,7 +222,7 @@ const LandingPage = () => {
         />
 
         {/* Trust/Integration Strip */}
-        <section className="py-20 bg-white border-y border-light-border relative overflow-hidden">
+        <section className="py-10 bg-white border-y border-light-border relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex flex-col items-center gap-12">
               <p className="text-[10px] font-black text-brand-accent-600/40 uppercase tracking-[0.4em]">Integrated Ecosystem</p>
@@ -248,11 +247,6 @@ const LandingPage = () => {
           <div className="absolute top-0 right-0 w-32 h-full bg-gradient-to-l from-white to-transparent z-10" />
         </section>
 
-        {/* Feature Sections */}
-        <div id="features">
-          <DepartmentFeatures />
-        </div>
-
         <div id="editor">
           <EditorShowcase />
         </div>
@@ -262,7 +256,7 @@ const LandingPage = () => {
         </div>
 
         {/* Final Conversion Section */}
-        <section id="enterprise" className="py-32 bg-light-surface relative">
+        <section id="enterprise" className="py-20 bg-light-surface relative">
            <div className="max-w-6xl mx-auto px-4">
               <motion.div 
                 initial={{ opacity: 0, scale: 0.95 }}

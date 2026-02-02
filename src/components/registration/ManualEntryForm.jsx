@@ -226,267 +226,284 @@ const ManualEntryForm = ({ onSubmit, onBack, isLoading = false }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="max-w-2xl mx-auto"
+      className="max-w-4xl mx-auto px-4"
     >
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-6 mb-10">
         <button
           type="button"
           onClick={onBack}
-          className="p-2 rounded-xl text-light-text-secondary hover:text-light-text hover:bg-light-surface transition-colors"
+          className="p-3 rounded-2xl bg-white border border-light-border text-light-text-secondary hover:text-brand-accent-600 hover:border-brand-accent-200 hover:shadow-lg transition-all"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div>
-          <h2 className="text-2xl font-black text-light-text">
-            Enter Company Details
+          <h2 className="text-3xl font-black text-light-text tracking-tight">
+            Organization Details
           </h2>
-          <p className="text-light-text-secondary">
-            Fill in your organization's information
+          <p className="text-light-text-secondary font-medium mt-1">
+            Manually configure your enterprise profile and contact nodes.
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Company Name & Logo */}
-        <div className="bg-white rounded-2xl border border-light-border p-6 shadow-sm">
-          <h3 className="font-bold text-light-text mb-4 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-brand-accent-500" />
-            Basic Information
-          </h3>
-
-          <div className="flex gap-6">
-            {/* Logo Upload */}
-            <div className="flex-shrink-0">
-              <label className="block text-sm font-bold text-light-text-secondary mb-2">
-                Logo
-              </label>
-              <label className="cursor-pointer">
-                <div className="w-24 h-24 rounded-2xl border-2 border-dashed border-light-border hover:border-brand-accent-500 flex items-center justify-center overflow-hidden transition-colors bg-light-surface">
-                  {logoPreview ? (
-                    <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain" />
-                  ) : (
-                    <div className="text-center">
-                      <ImageIcon className="w-6 h-6 text-light-text-secondary/50 mx-auto mb-1" />
-                      <span className="text-xs text-light-text-secondary">Upload</span>
-                    </div>
-                  )}
+      <form onSubmit={handleSubmit} className="space-y-8">
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column: Basic Info */}
+          <div className="lg:col-span-2 space-y-6">
+             {/* Company Name & Logo */}
+            <div className="bg-white rounded-[32px] border border-light-border p-8 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-brand-accent-50 flex items-center justify-center">
+                   <Building2 className="w-5 h-5 text-brand-accent-600" />
                 </div>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleLogoChange}
-                  className="hidden"
+                <h3 className="font-black text-xl text-light-text">
+                  Core Identity
+                </h3>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-8">
+                {/* Logo Upload */}
+                <div className="flex-shrink-0">
+                  <label className="block text-xs font-bold text-light-text-secondary uppercase tracking-wider mb-3">
+                    Brand Mark
+                  </label>
+                  <label className="cursor-pointer group">
+                    <div className="w-32 h-32 rounded-3xl border-2 border-dashed border-light-border hover:border-brand-accent-500 bg-light-bg group-hover:bg-white flex items-center justify-center overflow-hidden transition-all duration-300 relative">
+                      {logoPreview ? (
+                        <img src={logoPreview} alt="Logo preview" className="w-full h-full object-contain p-4" />
+                      ) : (
+                        <div className="text-center">
+                          <ImageIcon className="w-8 h-8 text-light-text-secondary/40 mx-auto mb-2 group-hover:text-brand-accent-500 transition-colors" />
+                          <span className="text-[10px] font-bold text-light-text-secondary uppercase tracking-wider">Upload PNG</span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Name & Tagline */}
+                <div className="flex-1 space-y-5">
+                  <div>
+                    <label className="block text-xs font-bold text-light-text-secondary uppercase tracking-wider mb-2">
+                      Organization Name <span className="text-status-error">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
+                      placeholder="e.g. Acme Industries"
+                      className={`w-full px-5 py-3.5 bg-light-surface border rounded-xl text-base font-medium focus:outline-none focus:ring-4 focus:ring-brand-accent-500/10 transition-all ${
+                        errors.name ? 'border-status-error focus:border-status-error' : 'border-light-border focus:border-brand-accent-500'
+                      }`}
+                    />
+                    {errors.name && (
+                      <p className="mt-2 text-xs font-bold text-status-error flex items-center gap-1">
+                        <span className="w-1 h-1 rounded-full bg-status-error" /> {errors.name}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-light-text-secondary uppercase tracking-wider mb-2">
+                      Tagline / Slogan
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.tagline}
+                      onChange={(e) => handleInputChange('tagline', e.target.value)}
+                      placeholder="e.g. Building the future"
+                      className="w-full px-5 py-3.5 bg-light-surface border border-light-border rounded-xl text-base font-medium focus:outline-none focus:ring-4 focus:ring-brand-accent-500/10 focus:border-brand-accent-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div className="mt-6">
+                <label className="block text-xs font-bold text-light-text-secondary uppercase tracking-wider mb-2">
+                  Corporate Description
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Brief overview of activities..."
+                  rows={3}
+                  className="w-full px-5 py-3.5 bg-light-surface border border-light-border rounded-xl text-base font-medium focus:outline-none focus:ring-4 focus:ring-brand-accent-500/10 focus:border-brand-accent-500 transition-all resize-none"
                 />
-              </label>
+              </div>
             </div>
 
-            {/* Name & Tagline */}
-            <div className="flex-1 space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-light-text-secondary mb-2">
-                  Company Name <span className="text-status-error">*</span>
+             {/* Industry & Website */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-[24px] border border-light-border p-6 shadow-sm">
+                <label className="block text-xs font-bold text-light-text-secondary uppercase tracking-wider mb-2">
+                  Sector / Industry
                 </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  placeholder="Acme Corporation"
-                  className={`w-full px-4 py-3 bg-light-surface border rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-accent-100 transition-all ${
-                    errors.name ? 'border-status-error focus:border-status-error' : 'border-light-border focus:border-brand-accent-300'
-                  }`}
-                />
-                {errors.name && (
-                  <p className="mt-1 text-sm text-status-error">{errors.name}</p>
+                <select
+                  value={formData.industry}
+                  onChange={(e) => handleInputChange('industry', e.target.value)}
+                  className="w-full px-4 py-3 bg-light-surface border border-light-border rounded-xl text-base font-medium focus:outline-none focus:ring-4 focus:ring-brand-accent-500/10 focus:border-brand-accent-500 transition-all appearance-none"
+                >
+                  <option value="">Select industry...</option>
+                  {INDUSTRIES.map(industry => (
+                    <option key={industry} value={industry}>{industry}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="bg-white rounded-[24px] border border-light-border p-6 shadow-sm">
+                <label className="block text-xs font-bold text-light-text-secondary uppercase tracking-wider mb-2">
+                  Primary Domain
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Globe className="w-4 h-4 text-light-text-secondary/50" />
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.website}
+                    onChange={(e) => handleInputChange('website', e.target.value)}
+                    placeholder="example.com"
+                    className={`w-full pl-10 pr-4 py-3 bg-light-surface border rounded-xl text-base font-medium focus:outline-none focus:ring-4 focus:ring-brand-accent-500/10 transition-all ${
+                      errors.website ? 'border-status-error focus:border-status-error' : 'border-light-border focus:border-brand-accent-500'
+                    }`}
+                  />
+                </div>
+                {errors.website && (
+                  <p className="mt-2 text-xs font-bold text-status-error">{errors.website}</p>
                 )}
               </div>
-
-              <div>
-                <label className="block text-sm font-bold text-light-text-secondary mb-2">
-                  Tagline
-                </label>
-                <input
-                  type="text"
-                  value={formData.tagline}
-                  onChange={(e) => handleInputChange('tagline', e.target.value)}
-                  placeholder="Innovation at scale"
-                  className="w-full px-4 py-3 bg-light-surface border border-light-border rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-accent-100 focus:border-brand-accent-300 transition-all"
-                />
-              </div>
             </div>
           </div>
 
-          {/* Description */}
-          <div className="mt-4">
-            <label className="block text-sm font-bold text-light-text-secondary mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Tell us about your company..."
-              rows={3}
-              className="w-full px-4 py-3 bg-light-surface border border-light-border rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-accent-100 focus:border-brand-accent-300 transition-all resize-none"
-            />
-          </div>
-
-          {/* Industry & Website */}
-          <div className="grid grid-cols-2 gap-4 mt-4">
-            <div>
-              <label className="block text-sm font-bold text-light-text-secondary mb-2">
-                Industry
-              </label>
-              <select
-                value={formData.industry}
-                onChange={(e) => handleInputChange('industry', e.target.value)}
-                className="w-full px-4 py-3 bg-light-surface border border-light-border rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-accent-100 focus:border-brand-accent-300 transition-all"
-              >
-                <option value="">Select industry...</option>
-                {INDUSTRIES.map(industry => (
-                  <option key={industry} value={industry}>{industry}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-light-text-secondary mb-2">
-                Website
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Globe className="w-4 h-4 text-light-text-secondary/50" />
-                </div>
-                <input
-                  type="text"
-                  value={formData.website}
-                  onChange={(e) => handleInputChange('website', e.target.value)}
-                  placeholder="example.com"
-                  className={`w-full pl-10 pr-4 py-3 bg-light-surface border rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-brand-accent-100 transition-all ${
-                    errors.website ? 'border-status-error focus:border-status-error' : 'border-light-border focus:border-brand-accent-300'
-                  }`}
-                />
-              </div>
-              {errors.website && (
-                <p className="mt-1 text-sm text-status-error">{errors.website}</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Contact Information */}
-        <div className="bg-white rounded-2xl border border-light-border p-6 shadow-sm">
-          <h3 className="font-bold text-light-text mb-4 flex items-center gap-2">
-            <Mail className="w-5 h-5 text-brand-accent-500" />
-            Contact Information
-          </h3>
-
+          {/* Right Column: Contact & Social */}
           <div className="space-y-6">
-            <DynamicListField
-              label="Email Addresses"
-              icon={Mail}
-              items={formData.emails}
-              onAdd={() => handleListAdd('emails')}
-              onRemove={(i) => handleListRemove('emails', i)}
-              onChange={(i, v) => handleListChange('emails', i, v)}
-              placeholder="contact@company.com"
-              type="email"
-            />
+            <div className="bg-white rounded-[32px] border border-light-border p-6 shadow-sm">
+              <h3 className="font-black text-lg text-light-text mb-6 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-brand-accent-600" />
+                Contact Nodes
+              </h3>
 
-            <DynamicListField
-              label="Phone Numbers"
-              icon={Phone}
-              items={formData.phones}
-              onAdd={() => handleListAdd('phones')}
-              onRemove={(i) => handleListRemove('phones', i)}
-              onChange={(i, v) => handleListChange('phones', i, v)}
-              placeholder="+1 (555) 123-4567"
-              type="tel"
-            />
+              <div className="space-y-8">
+                <DynamicListField
+                  label="Email Addresses"
+                  icon={Mail}
+                  items={formData.emails}
+                  onAdd={() => handleListAdd('emails')}
+                  onRemove={(i) => handleListRemove('emails', i)}
+                  onChange={(i, v) => handleListChange('emails', i, v)}
+                  placeholder="contact@org.com"
+                  type="email"
+                />
 
-            <DynamicListField
-              label="Addresses"
-              icon={MapPin}
-              items={formData.addresses}
-              onAdd={() => handleListAdd('addresses')}
-              onRemove={(i) => handleListRemove('addresses', i)}
-              onChange={(i, v) => handleListChange('addresses', i, v)}
-              placeholder="123 Main St, City, State 12345"
-            />
+                <DynamicListField
+                  label="Phone Numbers"
+                  icon={Phone}
+                  items={formData.phones}
+                  onAdd={() => handleListAdd('phones')}
+                  onRemove={(i) => handleListRemove('phones', i)}
+                  onChange={(i, v) => handleListChange('phones', i, v)}
+                  placeholder="+1 (555) 000-0000"
+                  type="tel"
+                />
+
+                <DynamicListField
+                  label="Physical Locations"
+                  icon={MapPin}
+                  items={formData.addresses}
+                  onAdd={() => handleListAdd('addresses')}
+                  onRemove={(i) => handleListRemove('addresses', i)}
+                  onChange={(i, v) => handleListChange('addresses', i, v)}
+                  placeholder="123 Innovation Dr..."
+                />
+              </div>
+            </div>
+
+            <div className="bg-white rounded-[32px] border border-light-border p-6 shadow-sm">
+               <button
+                  type="button"
+                  onClick={() => setShowSocialLinks(!showSocialLinks)}
+                  className="w-full flex items-center justify-between group"
+                >
+                  <h3 className="font-black text-lg text-light-text flex items-center gap-2 group-hover:text-brand-accent-600 transition-colors">
+                    <Link2 className="w-5 h-5 text-brand-accent-600" />
+                    Digital Presence
+                  </h3>
+                  <div className={`w-8 h-8 rounded-full bg-light-surface flex items-center justify-center transition-transform duration-300 ${showSocialLinks ? 'rotate-180 bg-brand-accent-50 text-brand-accent-600' : ''}`}>
+                     <ChevronDown className="w-4 h-4" />
+                  </div>
+                </button>
+                 <AnimatePresence>
+                  {showSocialLinks && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-6 space-y-4">
+                        {SOCIAL_PLATFORMS.map(platform => (
+                          <div key={platform.id} className="relative">
+                            <label className="block text-[10px] font-bold text-light-text-secondary uppercase tracking-wider mb-1 absolute -top-2 left-2 bg-white px-1 z-10">
+                              {platform.name}
+                            </label>
+                            <input
+                              type="url"
+                              value={formData.socialLinks[platform.id] || ''}
+                              onChange={(e) => handleSocialLinkChange(platform.id, e.target.value)}
+                              placeholder={platform.placeholder}
+                              className="w-full px-4 py-3 bg-light-surface border border-light-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent-100 focus:border-brand-accent-500 transition-all placeholder-light-text-secondary/30"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+            </div>
           </div>
         </div>
 
-        {/* Social Links (Collapsible) */}
-        <div className="bg-white rounded-2xl border border-light-border p-6 shadow-sm">
-          <button
-            type="button"
-            onClick={() => setShowSocialLinks(!showSocialLinks)}
-            className="w-full flex items-center justify-between"
-          >
-            <h3 className="font-bold text-light-text flex items-center gap-2">
-              <Link2 className="w-5 h-5 text-brand-accent-500" />
-              Social Media Links
-            </h3>
-            <span className="text-sm text-light-text-secondary">
-              {showSocialLinks ? 'Hide' : 'Show'} ({Object.values(formData.socialLinks).filter(v => v?.trim()).length} added)
-            </span>
-          </button>
-
-          <AnimatePresence>
-            {showSocialLinks && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                  {SOCIAL_PLATFORMS.map(platform => (
-                    <div key={platform.id}>
-                      <label className="block text-sm font-medium text-light-text-secondary mb-1">
-                        {platform.name}
-                      </label>
-                      <input
-                        type="url"
-                        value={formData.socialLinks[platform.id] || ''}
-                        onChange={(e) => handleSocialLinkChange(platform.id, e.target.value)}
-                        placeholder={platform.placeholder}
-                        className="w-full px-3 py-2 bg-light-surface border border-light-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent-100 focus:border-brand-accent-300 transition-all"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Submit Button */}
-        <div className="flex gap-4">
+        {/* Submit Actions */}
+        <div className="flex items-center gap-4 pt-4 border-t border-light-border">
           <button
             type="button"
             onClick={onBack}
-            className="px-6 py-4 rounded-2xl font-bold text-light-text-secondary bg-light-surface hover:bg-light-border transition-all"
+            className="px-8 py-4 rounded-2xl font-bold text-light-text-secondary bg-white border border-light-border hover:bg-light-surface hover:text-light-text transition-all"
           >
-            Back
+            Cancel
           </button>
+          <div className="flex-1" />
           <button
             type="submit"
             disabled={isLoading || !formData.name.trim()}
-            className={`flex-1 flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg transition-all ${
-              isLoading || !formData.name.trim()
+            className={`
+              flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-lg uppercase tracking-wide
+              transition-all duration-300
+              ${isLoading || !formData.name.trim()
                 ? 'bg-light-sidebar text-light-text-muted cursor-not-allowed'
-                : 'bg-brand-accent-600 text-white hover:bg-brand-accent-700 shadow-xl shadow-brand-accent-600/20'
-            }`}
+                : 'bg-brand-accent-600 text-white hover:bg-brand-accent-700 shadow-xl shadow-brand-accent-600/30 hover:scale-[1.01]'
+              }
+            `}
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Creating Profile...
+                <span>Processing...</span>
               </>
             ) : (
               <>
-                Continue to Preview
-                <ArrowRight className="w-5 h-5" />
+                <span>Generate Profile</span>
+                <ArrowRight className="w-6 h-6" />
               </>
             )}
           </button>

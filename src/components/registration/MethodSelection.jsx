@@ -11,104 +11,97 @@ const MethodSelection = ({ onSelectScan, onSelectManual }) => {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto"
+      className="max-w-5xl mx-auto px-4"
     >
-      <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-accent-100 mb-6 shadow-lg shadow-brand-accent-100/50">
-          <Sparkles className="w-8 h-8 text-brand-accent-600" />
+      <div className="text-center mb-16">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-[32px] bg-brand-accent-50 border border-brand-accent-100 mb-8 shadow-xl shadow-brand-accent-900/5">
+          <Sparkles className="w-10 h-10 text-brand-accent-600" />
         </div>
-        <h1 className="text-3xl font-black text-light-text mb-3">
-          Register Your Company
+        <h1 className="text-4xl md:text-5xl font-black text-light-text tracking-tighter mb-6">
+          Initialize Organization
         </h1>
-        <p className="text-light-text-secondary text-lg">
-          Choose how you'd like to set up your organization profile
+        <p className="text-xl text-light-text-secondary font-medium max-w-2xl mx-auto leading-relaxed">
+          Select your preferred onboarding method to begin the digital transformation process.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Scan Website Option */}
         <motion.button
           onClick={onSelectScan}
-          whileHover={{ scale: 1.02, y: -4 }}
+          whileHover={{ y: -8 }}
           whileTap={{ scale: 0.98 }}
-          className="relative group p-8 bg-light-surface rounded-3xl border border-light-border hover:border-brand-accent-500 text-left transition-all shadow-soft hover:shadow-lg"
+          className="relative group flex flex-col h-full p-10 bg-white rounded-[40px] border border-light-border hover:border-brand-accent-300 text-left transition-all shadow-sm hover:shadow-2xl hover:shadow-brand-accent-900/10 overflow-hidden"
         >
-          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-            <ArrowRight className="w-5 h-5 text-brand-accent-500" />
-          </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-brand-accent-50 rounded-full -mr-32 -mt-32 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-3xl" />
           
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-accent-500 to-brand-accent-600 flex items-center justify-center mb-6 shadow-lg shadow-brand-accent-500/20">
-            <Globe className="w-7 h-7 text-white" />
-          </div>
-          
-          <h3 className="text-xl font-bold text-light-text mb-2">
-            Scan Website
-          </h3>
-          <p className="text-light-text-secondary mb-4">
-            We'll automatically extract your company information from your website.
-          </p>
-          
-          <div className="flex flex-wrap gap-2">
-            <span className="px-3 py-1 bg-brand-accent-50 text-brand-accent-700 text-xs font-medium rounded-full border border-brand-accent-100">
-              Auto-detect logo
-            </span>
-            <span className="px-3 py-1 bg-brand-accent-50 text-brand-accent-700 text-xs font-medium rounded-full border border-brand-accent-100">
-              Extract contacts
-            </span>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-light-border">
-            <p className="text-xs text-light-text-secondary">
-              Best for companies with an existing website
+          <div className="relative z-10 flex flex-col h-full">
+            <div className="flex items-start justify-between mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-brand-accent-50 flex items-center justify-center border border-brand-accent-100 group-hover:bg-brand-accent-600 group-hover:border-brand-accent-600 transition-colors duration-300">
+                <Globe className="w-8 h-8 text-brand-accent-600 group-hover:text-white transition-colors duration-300" />
+              </div>
+              <div className="w-10 h-10 rounded-full border border-light-border flex items-center justify-center group-hover:border-brand-accent-600 group-hover:bg-brand-accent-600 transition-all">
+                <ArrowRight className="w-5 h-5 text-light-text-secondary group-hover:text-white transition-colors" />
+              </div>
+            </div>
+            
+            <h3 className="text-2xl font-black text-light-text mb-3 tracking-tight">
+              AI Website Scan
+            </h3>
+            <p className="text-light-text-secondary font-medium leading-relaxed mb-8 flex-grow">
+              Our autonomous agents will crawl your public domain to extract brand assets, contact data, and corporate structure.
             </p>
+            
+            <div className="flex flex-wrap gap-2 mt-auto">
+              <span className="px-4 py-1.5 bg-light-surface border border-light-border text-light-text-secondary text-xs font-bold rounded-full uppercase tracking-wider group-hover:bg-brand-accent-50 group-hover:text-brand-accent-700 group-hover:border-brand-accent-200 transition-colors">
+                Auto-Discovery
+              </span>
+              <span className="px-4 py-1.5 bg-light-surface border border-light-border text-light-text-secondary text-xs font-bold rounded-full uppercase tracking-wider group-hover:bg-brand-accent-50 group-hover:text-brand-accent-700 group-hover:border-brand-accent-200 transition-colors">
+                ~30 Seconds
+              </span>
+            </div>
           </div>
         </motion.button>
 
         {/* Manual Entry Option */}
         <motion.button
           onClick={onSelectManual}
-          whileHover={{ scale: 1.02, y: -4 }}
+          whileHover={{ y: -8 }}
           whileTap={{ scale: 0.98 }}
-          className="relative group p-8 bg-light-surface rounded-3xl border border-light-border hover:border-status-success text-left transition-all shadow-soft hover:shadow-lg"
+          className="relative group flex flex-col h-full p-10 bg-white rounded-[40px] border border-light-border hover:border-brand-accent-300 text-left transition-all shadow-sm hover:shadow-2xl hover:shadow-brand-accent-900/10 overflow-hidden"
         >
-          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-            <ArrowRight className="w-5 h-5 text-status-success" />
-          </div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-green-50 rounded-full -mr-32 -mt-32 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-3xl" />
           
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-status-success to-green-600 flex items-center justify-center mb-6 shadow-lg shadow-green-500/20">
-            <Edit3 className="w-7 h-7 text-white" />
-          </div>
-          
-          <h3 className="text-xl font-bold text-light-text mb-2">
-            Enter Manually
-          </h3>
-          <p className="text-light-text-secondary mb-4">
-            Fill in your company details yourself with full control over every field.
-          </p>
-          
-          <div className="flex flex-wrap gap-2">
-            <span className="px-3 py-1 bg-green-50 text-status-success text-xs font-medium rounded-full border border-green-100">
-              Full control
-            </span>
-            <span className="px-3 py-1 bg-green-50 text-status-success text-xs font-medium rounded-full border border-green-100">
-              No website needed
-            </span>
-          </div>
-
-          <div className="mt-6 pt-4 border-t border-light-border">
-            <p className="text-xs text-light-text-secondary">
-              Best for new companies or those without a website
+          <div className="relative z-10 flex flex-col h-full">
+             <div className="flex items-start justify-between mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-white border-2 border-dashed border-light-border flex items-center justify-center group-hover:border-green-500 group-hover:bg-green-50 transition-all duration-300">
+                <Edit3 className="w-8 h-8 text-light-text-secondary group-hover:text-green-600 transition-colors duration-300" />
+              </div>
+              <div className="w-10 h-10 rounded-full border border-light-border flex items-center justify-center group-hover:border-green-600 group-hover:bg-green-600 transition-all">
+                <ArrowRight className="w-5 h-5 text-light-text-secondary group-hover:text-white transition-colors" />
+              </div>
+            </div>
+            
+            <h3 className="text-2xl font-black text-light-text mb-3 tracking-tight">
+              Manual Configuration
+            </h3>
+            <p className="text-light-text-secondary font-medium leading-relaxed mb-8 flex-grow">
+              Manually input your organization's details. Recommended for pre-launch startups or internal divisions.
             </p>
+            
+            <div className="flex flex-wrap gap-2 mt-auto">
+              <span className="px-4 py-1.5 bg-light-surface border border-light-border text-light-text-secondary text-xs font-bold rounded-full uppercase tracking-wider group-hover:bg-green-50 group-hover:text-green-700 group-hover:border-green-200 transition-colors">
+                Full Control
+              </span>
+              <span className="px-4 py-1.5 bg-light-surface border border-light-border text-light-text-secondary text-xs font-bold rounded-full uppercase tracking-wider group-hover:bg-green-50 group-hover:text-green-700 group-hover:border-green-200 transition-colors">
+                Granular Edit
+              </span>
+            </div>
           </div>
         </motion.button>
       </div>
-
-      <p className="text-center text-sm text-light-text-secondary mt-8">
-        You can always edit your company profile later from settings
-      </p>
     </motion.div>
   );
-
 };
 
 export default MethodSelection;

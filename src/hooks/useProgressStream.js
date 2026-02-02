@@ -210,6 +210,15 @@ export const useProgressStream = (sessionId) => {
                 }
                 break;
 
+            case 'content_card':
+                // Add scraped content card to items (for company registration feed)
+                currentItems.push({
+                    ...event,
+                    children: []
+                });
+                updated = true;
+                break;
+
             case 'file_created':
                 // Add as a special item type or add to a "Files" list?
                 // Let's add as a timeline item for now

@@ -54,7 +54,7 @@ export default function WorkflowSection() {
   ];
 
   return (
-    <section ref={containerRef} className="py-32 bg-light-sidebar relative overflow-hidden">
+    <section ref={containerRef} className="py-20 bg-light-sidebar relative overflow-hidden">
       {/* Decorative patterns */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#427CCB 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
       

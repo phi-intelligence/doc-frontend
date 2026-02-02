@@ -25,28 +25,28 @@ const ProgressStep = ({ item }) => {
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       className={`
-        flex items-start gap-3 p-3 rounded-xl border
-        ${isComplete ? 'bg-status-success/10 border-status-success/20' : isError ? 'bg-status-error/10 border-status-error/20' : 'bg-light-surface border-light-border'}
+        flex items-start gap-4 p-4 rounded-2xl border transition-all duration-300
+        ${isComplete ? 'bg-green-50/50 border-green-200' : isError ? 'bg-red-50/50 border-red-200' : 'bg-white border-light-border shadow-sm'}
       `}
     >
       <div className={`
-        flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-lg
-        ${isComplete ? 'bg-status-success/20 text-status-success' : isError ? 'bg-status-error/20 text-status-error' : 'bg-white text-light-text-secondary'}
+        flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-sm
+        ${isComplete ? 'bg-green-100 text-green-600' : isError ? 'bg-red-100 text-red-600' : 'bg-light-surface text-light-text-secondary border border-light-border'}
       `}>
-        {item.icon || (isRunning ? <Loader2 className="w-4 h-4 animate-spin text-brand-accent-500" /> : '📄')}
+        {item.icon || (isRunning ? <Loader2 className="w-5 h-5 animate-spin text-brand-accent-600" /> : '📄')}
       </div>
-      <div className="flex-1 min-w-0">
-        <p className={`font-medium ${isError ? 'text-status-error' : 'text-light-text'}`}>
+      <div className="flex-1 min-w-0 pt-1">
+        <p className={`font-bold text-sm ${isError ? 'text-red-700' : 'text-light-text'}`}>
           {item.title}
         </p>
         {item.description && (
-          <p className="text-sm text-light-text-secondary mt-0.5 truncate">
+          <p className="text-xs text-light-text-secondary mt-1 truncate font-medium">
             {item.description}
           </p>
         )}
       </div>
-      {isComplete && <CheckCircle className="w-5 h-5 text-status-success flex-shrink-0" />}
-      {isError && <AlertCircle className="w-5 h-5 text-status-error flex-shrink-0" />}
+      {isComplete && <div className="p-1 rounded-full bg-green-100"><CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" /></div>}
+      {isError && <div className="p-1 rounded-full bg-red-100"><AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" /></div>}
     </motion.div>
   );
 };
@@ -75,6 +75,7 @@ const CompanyRegistrationPage = () => {
   const [sessionId, setSessionId] = useState(null);
   const [orgId, setOrgId] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [pages, setPages] = useState([]);  // Scraped pages for preview
   const [error, setError] = useState(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isFinalizing, setIsFinalizing] = useState(false);
@@ -112,6 +113,7 @@ const CompanyRegistrationPage = () => {
     setSessionId(null);
     setOrgId(null);
     setProfile(null);
+    setPages([]);
     setError(null);
     setFlowType(null);
   }, []);
@@ -123,6 +125,7 @@ const CompanyRegistrationPage = () => {
         .then(response => {
           if (response.status === 'complete') {
             setProfile(response.profile);
+            setPages(response.pages || []);  // Store scraped pages for preview
             goToPhase('preview');
           } else if (response.status === 'failed') {
             setError(response.error || 'Scraping failed');
@@ -382,26 +385,38 @@ const CompanyRegistrationPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left: Status */}
             <div>
-              <div className="bg-white rounded-3xl border border-light-border p-6">
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-12 h-12 rounded-xl bg-brand-accent-100 flex items-center justify-center">
-                    <Building2 className="w-6 h-6 text-brand-accent-600" />
+              <div className="bg-white rounded-[32px] border border-light-border p-8 shadow-sm">
+                <div className="flex items-center gap-6 mb-8">
+                  <div className="w-16 h-16 rounded-[20px] bg-brand-accent-50 border border-brand-accent-100 flex items-center justify-center shadow-sm">
+                    <Building2 className="w-8 h-8 text-brand-accent-600" />
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-xl font-bold text-light-text">
-                      Scanning Website
+                    <h2 className="text-2xl font-black text-light-text tracking-tight">
+                      Analyzing Domain
                     </h2>
-                    <p className="text-sm text-light-text-secondary">
-                      {isConnected ? 'Connected - receiving updates...' : 'Connecting...'}
+                    <p className="text-sm font-medium text-light-text-secondary mt-1 flex items-center gap-2">
+                      {isConnected ? (
+                        <>
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                          </span>
+                          Live Intelligence Feed
+                        </>
+                      ) : (
+                        'Establishing Secure Connection...'
+                      )}
                     </p>
                   </div>
                   {!isComplete && (
-                    <Loader2 className="w-6 h-6 animate-spin text-brand-accent-500" />
+                    <div className="p-3 rounded-full bg-brand-accent-50">
+                       <Loader2 className="w-6 h-6 animate-spin text-brand-accent-600" />
+                    </div>
                   )}
                 </div>
 
                 {/* Progress Steps */}
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                   <AnimatePresence mode="popLayout">
                     {stepItems.map((item, index) => (
                       <ProgressStep key={item.id || index} item={item} />
@@ -410,13 +425,13 @@ const CompanyRegistrationPage = () => {
                 </div>
 
                 {/* Cancel Button */}
-                <div className="mt-6 pt-4 border-t border-light-border">
+                <div className="mt-8 pt-6 border-t border-light-border">
                   <button
                     onClick={handleCancelScraping}
-                    className="flex items-center gap-2 text-sm text-light-text-secondary hover:text-red-600 transition-colors"
+                    className="flex items-center justify-center gap-2 w-full py-4 rounded-xl text-sm font-bold text-light-text-secondary hover:text-red-600 hover:bg-red-50 transition-all border border-transparent hover:border-red-100"
                   >
                     <X className="w-4 h-4" />
-                    Cancel and start over
+                    Abort Operation
                   </button>
                 </div>
               </div>
@@ -438,7 +453,7 @@ const CompanyRegistrationPage = () => {
           </div>
         ) : (
           /* Single Column for other phases */
-          <div className="max-w-2xl mx-auto">
+          <div className="w-full">
             <AnimatePresence mode="wait">
               {phase === 'method' && (
                 <MethodSelection
@@ -484,6 +499,7 @@ const CompanyRegistrationPage = () => {
                 <ProfilePreview
                   key="preview"
                   profile={profile}
+                  pages={pages}
                   onEdit={handleProfileEdit}
                   onContinue={handleContinueToModules}
                   onBack={goBack}
