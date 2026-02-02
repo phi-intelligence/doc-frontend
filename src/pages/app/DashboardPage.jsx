@@ -9,7 +9,9 @@ import {
   Bell,
   Clock,
   TrendingUp,
-  FileCheck
+  FileCheck,
+  Shield,
+  HeartPulse
 } from 'lucide-react';
 import StatCard from '../../components/shared/dashboard/StatCard';
 import SectionCard from '../../components/shared/dashboard/SectionCard';
@@ -47,6 +49,28 @@ const sections = [
     stats: [
       { label: 'Active', value: '45' },
       { label: 'Expires', value: '03' }
+    ]
+  },
+  { 
+    to: '/app/insurance', 
+    title: 'Insurance', 
+    description: 'Manage policies, claims, underwriting, and renewals with AI.', 
+    icon: Shield,
+    color: 'cyan',
+    stats: [
+      { label: 'Policies', value: '0' },
+      { label: 'Claims', value: '0' }
+    ]
+  },
+  { 
+    to: '/app/medical', 
+    title: 'Medical', 
+    description: 'Patient records, appointments, prescriptions, and lab results.', 
+    icon: HeartPulse,
+    color: 'rose',
+    stats: [
+      { label: 'Patients', value: '0' },
+      { label: 'Appts', value: '0' }
     ]
   },
   { 

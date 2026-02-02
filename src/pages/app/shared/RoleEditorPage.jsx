@@ -59,6 +59,28 @@ const MODULE_CONFIG = {
     ],
     backTo: '/app/marketing',
   },
+  insurance: {
+    name: 'Insurance',
+    suggestions: [
+      'Generate a comprehensive insurance policy document',
+      'Create a claim submission form for property damage',
+      'Draft an underwriting risk assessment report',
+      'Build a policy renewal notice letter',
+      'Produce an agent performance report',
+    ],
+    backTo: '/app/insurance',
+  },
+  medical: {
+    name: 'Medical',
+    suggestions: [
+      'Create a patient consultation note (SOAP format)',
+      'Generate a prescription document for medication',
+      'Draft a referral letter to a specialist',
+      'Build a hospital discharge summary',
+      'Create a lab order form for diagnostic tests',
+    ],
+    backTo: '/app/medical',
+  },
   general: {
     name: 'Document Editor',
     suggestions: [

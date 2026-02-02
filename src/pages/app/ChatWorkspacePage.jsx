@@ -13,6 +13,8 @@ import {
   BarChart3,
   Scale,
   Megaphone,
+  Shield,
+  HeartPulse,
   ChevronRight,
 } from 'lucide-react';
 import TemplateCard from '../../components/cards/TemplateCard';
@@ -39,6 +41,8 @@ const departmentLinks = [
   { to: '/app/finance/editor?direct=1', label: 'Finance Editor', icon: BarChart3, description: 'Reports and spreadsheets' },
   { to: '/app/legal/editor?direct=1', label: 'Legal Editor', icon: Scale, description: 'Legal and compliance docs' },
   { to: '/app/marketing/editor?direct=1', label: 'Marketing Editor', icon: Megaphone, description: 'Campaigns and content' },
+  { to: '/app/insurance/editor?direct=1', label: 'Insurance Editor', icon: Shield, description: 'Policies and claims' },
+  { to: '/app/medical/editor?direct=1', label: 'Medical Editor', icon: HeartPulse, description: 'Patient records and forms' },
 ];
 
 /**

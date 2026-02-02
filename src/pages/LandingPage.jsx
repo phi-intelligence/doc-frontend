@@ -48,7 +48,7 @@ const LandingPage = () => {
   };
 
   const handleGoDashboard = useCallback(() => {
-    if (user?.module && ['hr', 'finance', 'legal', 'marketing'].includes(user.module)) {
+    if (user?.module && ['hr', 'finance', 'legal', 'marketing', 'insurance', 'medical'].includes(user.module)) {
       navigate(`/app/${user.module}`);
     } else {
       navigate('/app/dashboard');
@@ -60,7 +60,7 @@ const LandingPage = () => {
     try {
       const data = await roleLogin({ module: moduleId, display_name: displayName });
       const mod = data?.user?.module;
-      if (mod && ['hr', 'finance', 'legal', 'marketing'].includes(mod)) {
+      if (mod && ['hr', 'finance', 'legal', 'marketing', 'insurance', 'medical'].includes(mod)) {
         navigate(`/app/${mod}`);
       } else {
         navigate('/app/dashboard');

@@ -14,7 +14,9 @@ import {
   Megaphone,
   Edit3,
   Sparkles,
-  Home
+  Home,
+  Shield,
+  HeartPulse
 } from 'lucide-react';
 import { useAuth } from '../../auth/AuthContext';
 import ModuleRouteGuard from '../../auth/ModuleRouteGuard';
@@ -26,8 +28,10 @@ const FULL_NAV = [
   { to: '/app/hr', label: 'HR Workspace', icon: Users },
   { to: '/app/finance', label: 'Finance Hub', icon: BarChart3 },
   { to: '/app/legal', label: 'Legal & Compliance', icon: Scale },
-  { to: '/app/docs', label: 'Knowledge Base', icon: FileText },
   { to: '/app/marketing', label: 'Marketing', icon: Megaphone },
+  { to: '/app/insurance', label: 'Insurance', icon: Shield },
+  { to: '/app/medical', label: 'Medical', icon: HeartPulse },
+  { to: '/app/docs', label: 'Knowledge Base', icon: FileText },
   { to: '/general', label: 'General', icon: Sparkles }
 ];
 
@@ -35,7 +39,9 @@ const MODULE_NAV_MAP = {
   hr: { to: '/app/hr', label: 'HR Workspace', icon: Users },
   finance: { to: '/app/finance', label: 'Finance Hub', icon: BarChart3 },
   legal: { to: '/app/legal', label: 'Legal & Compliance', icon: Scale },
-  marketing: { to: '/app/marketing', label: 'Marketing', icon: Megaphone }
+  marketing: { to: '/app/marketing', label: 'Marketing', icon: Megaphone },
+  insurance: { to: '/app/insurance', label: 'Insurance', icon: Shield },
+  medical: { to: '/app/medical', label: 'Medical', icon: HeartPulse }
 };
 
 export default function AppShell() {
@@ -84,7 +90,7 @@ export default function AppShell() {
             onClick={() => {
               // For module users, go directly to their editor workspace; for admins, go to chat
               const module = user?.module;
-              if (module && ['hr', 'finance', 'legal', 'marketing'].includes(module)) {
+              if (module && ['hr', 'finance', 'legal', 'marketing', 'insurance', 'medical'].includes(module)) {
                 navigate(`/${module}/editor?direct=1`);
               } else {
                 navigate('/app/chat');

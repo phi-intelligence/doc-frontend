@@ -2,10 +2,10 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 
-const ALLOWED_MODULES = ['hr', 'finance', 'legal', 'marketing'];
+const ALLOWED_MODULES = ['hr', 'finance', 'legal', 'marketing', 'insurance', 'medical'];
 
 /**
- * For module users (user.module in hr|finance|legal|marketing), allow only:
+ * For module users (user.module in hr|finance|legal|marketing|insurance|medical), allow only:
  * - /app (index)
  * - /app/chat
  * - /app/{user.module} and /app/{user.module}/*

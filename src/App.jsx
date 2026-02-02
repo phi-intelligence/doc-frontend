@@ -29,13 +29,26 @@ import DocsDashboard from './pages/app/DocsDashboard';
 import ChatWorkspacePage from './pages/app/ChatWorkspacePage';
 import MarketingDashboard from './pages/app/marketing/MarketingDashboard';
 
+// Insurance pages
+import InsuranceDashboard from './pages/app/insurance/InsuranceDashboard';
+import PoliciesPage from './pages/app/insurance/PoliciesPage';
+import ClaimsPage from './pages/app/insurance/ClaimsPage';
+import ClaimDetail from './pages/app/insurance/ClaimDetail';
+
+// Medical pages
+import MedicalDashboard from './pages/app/medical/MedicalDashboard';
+import PatientsPage from './pages/app/medical/PatientsPage';
+import PatientDetail from './pages/app/medical/PatientDetail';
+import AppointmentsPage from './pages/app/medical/AppointmentsPage';
+import ScheduleView from './pages/app/medical/ScheduleView';
+
 import './index.css';
 
 /** Redirect /app to /app/dashboard or /app/{module} based on user.module */
 function AppIndexRedirect() {
   const { user } = useAuth();
   const module = user?.module;
-  if (module && ['hr', 'finance', 'legal', 'marketing'].includes(module)) {
+  if (module && ['hr', 'finance', 'legal', 'marketing', 'insurance', 'medical'].includes(module)) {
     return <Navigate to={`/app/${module}`} replace />;
   }
   return <Navigate to="/app/dashboard" replace />;
@@ -69,12 +82,16 @@ function App() {
         <Route path="/demo/finance" element={<Navigate to="/finance/editor" replace />} />
         <Route path="/demo/legal" element={<Navigate to="/legal/editor" replace />} />
         <Route path="/demo/marketing" element={<Navigate to="/marketing/editor" replace />} />
+        <Route path="/demo/insurance" element={<Navigate to="/insurance/editor" replace />} />
+        <Route path="/demo/medical" element={<Navigate to="/medical/editor" replace />} />
 
         {/* Standalone Editor Routes (full-page, outside AppShell) */}
         <Route path="/hr/editor" element={<ProtectedRoute><RoleEditorPage module="hr" /></ProtectedRoute>} />
         <Route path="/finance/editor" element={<ProtectedRoute><RoleEditorPage module="finance" /></ProtectedRoute>} />
         <Route path="/legal/editor" element={<ProtectedRoute><RoleEditorPage module="legal" /></ProtectedRoute>} />
         <Route path="/marketing/editor" element={<ProtectedRoute><RoleEditorPage module="marketing" /></ProtectedRoute>} />
+        <Route path="/insurance/editor" element={<ProtectedRoute><RoleEditorPage module="insurance" /></ProtectedRoute>} />
+        <Route path="/medical/editor" element={<ProtectedRoute><RoleEditorPage module="medical" /></ProtectedRoute>} />
 
         {/* General Page (standalone, protected) - Full ChatPage experience */}
         <Route path="/general" element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
@@ -117,6 +134,24 @@ function App() {
           {/* Marketing (sidebar entry for module users) */}
           <Route path="marketing" element={<MarketingDashboard />} />
           {/* Marketing editor moved to standalone route /marketing/editor */}
+
+          {/* Insurance Workspace */}
+          <Route path="insurance" element={<InsuranceDashboard />} />
+          <Route path="insurance/policies" element={<PoliciesPage />} />
+          <Route path="insurance/policies/:policyId" element={<ClaimDetail />} />
+          <Route path="insurance/claims" element={<ClaimsPage />} />
+          <Route path="insurance/claims/:claimId" element={<ClaimDetail />} />
+          {/* Insurance editor moved to standalone route /insurance/editor */}
+
+          {/* Medical Workspace */}
+          <Route path="medical" element={<MedicalDashboard />} />
+          <Route path="medical/patients" element={<PatientsPage />} />
+          <Route path="medical/patients/new" element={<PatientsPage />} />
+          <Route path="medical/patients/:patientId" element={<PatientDetail />} />
+          <Route path="medical/appointments" element={<AppointmentsPage />} />
+          <Route path="medical/appointments/new" element={<AppointmentsPage />} />
+          <Route path="medical/schedule" element={<ScheduleView />} />
+          {/* Medical editor moved to standalone route /medical/editor */}
 
           <Route index element={<AppIndexRedirect />} />
         </Route>

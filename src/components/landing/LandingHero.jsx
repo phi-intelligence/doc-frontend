@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, Play, Users, DollarSign, Scale, Megaphone, Shield, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ChevronRight, Play, Users, DollarSign, Scale, Megaphone, Shield, HeartPulse, Sparkles } from 'lucide-react';
 
-const MODULE_ICONS = { hr: Users, finance: DollarSign, legal: Scale, marketing: Megaphone, admin: Shield };
+const MODULE_ICONS = { hr: Users, finance: DollarSign, legal: Scale, marketing: Megaphone, insurance: Shield, medical: HeartPulse, admin: Shield };
 
 /**
  * LandingHero - Professional business-oriented Hero section with two-column layout
@@ -69,150 +70,144 @@ export default function LandingHero({
       </div>
 
       {/* Login / Role Section */}
-      <div className="relative bg-white py-12 border-t border-light-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative bg-white py-20 border-t border-light-border overflow-hidden">
+         {/* Decorative background blur */}
+         <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-brand-accent-50/50 rounded-full blur-3xl -mr-64 -mt-64 pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
             {/* Left: Content */}
             <div className="relative">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-accent-50 border border-brand-accent-100 text-brand-accent-700 text-xs font-bold tracking-wider uppercase mb-8">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-brand-accent-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-accent-600"></span>
-                </span>
-                Active Deployments
+              <div className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-light-surface border border-light-border mb-8 shadow-sm">
+                 <div className="flex -space-x-2">
+                    <div className="w-6 h-6 rounded-full bg-green-500 border-2 border-white" />
+                    <div className="w-6 h-6 rounded-full bg-blue-500 border-2 border-white" />
+                    <div className="w-6 h-6 rounded-full bg-purple-500 border-2 border-white" />
+                 </div>
+                 <span className="text-xs font-bold text-light-text-secondary uppercase tracking-wider">Trusted by 500+ Enterprises</span>
               </div>
               
-              <h2 className="text-4xl lg:text-6xl font-bold text-light-text tracking-tight leading-[1] mb-8">
-                Automate High-Stakes <br />
-                <span className="text-brand-accent-600">Documentation.</span>
+              <h2 className="text-5xl lg:text-7xl font-black text-light-text tracking-tighter leading-[0.9] mb-8">
+                Intelligent <br />
+                <span className="text-brand-accent-600">Access Control.</span>
               </h2>
               
-              <p className="text-xl text-light-text-secondary leading-relaxed mb-10 max-w-xl font-medium">
-                Our specialized AI engines handle the heavy lifting, allowing your team to focus on strategic decision-making.
+              <p className="text-xl text-light-text-secondary leading-relaxed mb-12 max-w-lg font-medium">
+                Secure, role-based entry points ensuring data isolation and compliance across your entire organization.
               </p>
 
-              <div className="grid grid-cols-2 gap-8 mb-10">
-                <div className="flex flex-col gap-2">
-                  <div className="text-3xl font-black text-light-text">99.8%</div>
-                  <div className="text-sm font-bold text-light-text-secondary uppercase tracking-widest">Accuracy</div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <div className="text-3xl font-black text-light-text">15x</div>
-                  <div className="text-sm font-bold text-light-text-secondary uppercase tracking-widest">Efficiency</div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-6 p-4 bg-light-bg rounded-3xl border border-light-border inline-flex">
-                <div className="flex -space-x-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-12 h-12 rounded-full border-4 border-light-bg bg-brand-accent-100 overflow-hidden shadow-sm">
-                      <img src={`https://i.pravatar.cc/100?img=${i+20}`} alt="user" className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-                <div className="pr-4">
-                  <div className="font-bold text-light-text text-lg">2,500+ Enterprise Teams</div>
-                  <div className="flex items-center gap-1">
-                    {[1, 2, 3, 4, 5].map(i => <Sparkles key={i} className="w-3 h-3 text-brand-accent-500 fill-brand-accent-500" />)}
-                    <span className="text-xs font-bold text-brand-accent-700 ml-1">TOP RATED</span>
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 gap-8">
+                 <div className="p-6 rounded-[24px] bg-light-bg border border-light-border">
+                    <div className="text-4xl font-black text-light-text mb-2">SOC2</div>
+                    <div className="text-xs font-bold text-light-text-secondary uppercase tracking-widest">Type II Certified</div>
+                 </div>
+                 <div className="p-6 rounded-[24px] bg-light-bg border border-light-border">
+                    <div className="text-4xl font-black text-light-text mb-2">256-bit</div>
+                    <div className="text-xs font-bold text-light-text-secondary uppercase tracking-widest">End-to-End Encryption</div>
+                 </div>
               </div>
             </div>
 
             {/* Right: Login Panel */}
             <div className="relative">
-              <div className="bg-white rounded-[48px] p-12 shadow-[0_40px_80px_-15px_rgba(26,26,27,0.1)] border border-light-border relative z-20 overflow-hidden">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-accent-50 rounded-full -mr-32 -mt-32 opacity-50 blur-3xl" />
-                
-                <div className="relative z-10">
-                  <div className="flex items-center justify-between mb-10">
+              <div className="bg-white rounded-[40px] p-10 shadow-2xl shadow-brand-accent-900/5 border border-light-border relative overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-10 pb-8 border-b border-light-border/50">
                     <div>
-                      <h3 className="text-3xl font-black text-light-text mb-2">Workspace</h3>
-                      <p className="text-light-text-secondary font-medium">Select your department module</p>
+                      <h3 className="text-2xl font-black text-light-text tracking-tight">Select Workspace</h3>
+                      <p className="text-sm font-medium text-light-text-secondary">Choose your operational domain</p>
                     </div>
-                    <div className="w-16 h-16 rounded-2xl bg-brand-accent-600 flex items-center justify-center shadow-2xl shadow-brand-accent-600/20">
-                      <Shield className="w-8 h-8 text-white" />
+                    <div className="w-12 h-12 rounded-2xl bg-brand-accent-50 flex items-center justify-center border border-brand-accent-100">
+                      <Shield className="w-6 h-6 text-brand-accent-600" />
                     </div>
-                  </div>
+                </div>
 
+                {/* Body */}
                   {isAuthenticated ? (
-                    <div className="space-y-8">
-                      <div className="p-8 bg-brand-accent-50/50 border border-brand-accent-100 rounded-[32px]">
-                        <div className="flex items-center gap-5 mb-6">
-                          <div className="w-16 h-16 rounded-2xl bg-white border border-brand-accent-200 flex items-center justify-center shadow-lg">
-                            <Megaphone className="w-8 h-8 text-brand-accent-600" />
+                    <div className="space-y-6">
+                      <div className="p-6 bg-brand-accent-50 border border-brand-accent-100 rounded-3xl flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-sm text-brand-accent-600">
+                            <Sparkles className="w-7 h-7" />
                           </div>
                           <div>
-                            <div className="font-black text-xl text-light-text">Welcome Back</div>
-                            <div className="text-brand-accent-700 font-bold uppercase tracking-widest text-xs mt-1">
-                              {user?.display_name || user?.module_name || 'Verified User'}
-                            </div>
+                            <div className="font-bold text-lg text-brand-accent-900">Session Active</div>
+                            <div className="text-xs font-medium text-brand-accent-700">Welcome back, {user?.display_name || 'User'}</div>
                           </div>
-                        </div>
-                        <p className="text-light-text-secondary font-medium leading-relaxed">
-                          Your departmental dashboard is live. Continue your recent document workflows.
-                        </p>
                       </div>
                       <button
                         onClick={onGoDashboard}
-                        className="w-full py-6 bg-brand-accent-600 text-white rounded-[24px] font-black text-xl hover:bg-brand-accent-700 shadow-2xl shadow-brand-accent-600/20 transition-all flex items-center justify-center gap-3 group"
+                        className="w-full py-5 bg-brand-accent-600 text-white rounded-2xl font-black text-lg hover:bg-brand-accent-700 shadow-xl shadow-brand-accent-600/20 transition-all flex items-center justify-center gap-2 group"
                       >
-                        Enter Dashboard
+                        Launch Dashboard <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                       </button>
                     </div>
                   ) : showAdminForm ? (
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-xl font-black text-light-text">Admin Access</h4>
-                        <button
+                    <motion.div 
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-6"
+                    >
+                      <button
                           type="button"
                           onClick={() => onShowAdminForm(false)}
-                          className="text-sm font-bold text-brand-accent-600 hover:text-brand-accent-700 border-b-2 border-brand-accent-600/20"
+                          className="flex items-center gap-2 text-xs font-bold text-light-text-secondary hover:text-brand-accent-600 transition-colors mb-2"
                         >
-                          Cancel
-                        </button>
-                      </div>
+                          <ChevronRight className="w-4 h-4 rotate-180" /> Back to Modules
+                      </button>
+                      
                       <form
-                        className="space-y-6"
+                        className="space-y-4"
                         onSubmit={(e) => {
                           e.preventDefault();
                           if (canSubmit) onLogin?.({ email, password });
                         }}
                       >
                         <div className="space-y-4">
-                          <input
-                            type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-8 py-5 rounded-[20px] bg-light-bg border-2 border-transparent focus:border-brand-accent-500 focus:bg-white transition-all outline-none text-light-text font-bold"
-                            placeholder="Administrator Email"
-                          />
-                          <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-8 py-5 rounded-[20px] bg-light-bg border-2 border-transparent focus:border-brand-accent-500 focus:bg-white transition-all outline-none text-light-text font-bold"
-                            placeholder="Password"
-                          />
+                          <div className="space-y-1">
+                             <label className="text-xs font-bold text-light-text uppercase tracking-wider ml-1">Admin ID</label>
+                             <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-6 py-4 rounded-2xl bg-light-surface border-2 border-transparent focus:border-brand-accent-500 focus:bg-white transition-all outline-none text-light-text font-bold text-sm"
+                                placeholder="name@organization.com"
+                              />
+                          </div>
+                          <div className="space-y-1">
+                             <label className="text-xs font-bold text-light-text uppercase tracking-wider ml-1">Secure Key</label>
+                             <input
+                                type="password"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-6 py-4 rounded-2xl bg-light-surface border-2 border-transparent focus:border-brand-accent-500 focus:bg-white transition-all outline-none text-light-text font-bold text-sm"
+                                placeholder="••••••••"
+                              />
+                          </div>
                         </div>
+                        
                         {loginError && (
-                          <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-sm font-bold rounded-2xl text-center">
+                          <div className="p-4 bg-red-50 border border-red-100 text-red-600 text-xs font-bold rounded-2xl flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-red-500" />
                             {loginError}
                           </div>
                         )}
+                        
                         <button
                           type="submit"
                           disabled={!canSubmit || isLoggingIn}
-                          className="w-full py-6 bg-brand-accent-600 text-white rounded-[24px] font-black text-xl hover:bg-brand-accent-700 shadow-2xl shadow-brand-accent-600/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                          className="w-full py-5 bg-brand-accent-600 text-white rounded-2xl font-black text-lg hover:bg-brand-accent-700 shadow-xl shadow-brand-accent-600/20 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed mt-4"
                         >
-                          {isLoggingIn ? 'Verifying...' : 'Sign In'}
+                          {isLoggingIn ? (
+                              <>
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Authenticating...
+                              </>
+                          ) : 'Access Console'}
                         </button>
                       </form>
-                    </div>
+                    </motion.div>
                   ) : (
-                    <div className="space-y-6">
-                      <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         {roleCards.map((role) => {
                           const Icon = MODULE_ICONS[role.id] || Users;
                           const isAdmin = role.id === 'admin';
@@ -228,29 +223,46 @@ export default function LandingHero({
                                   onRoleLogin?.(role.id);
                                 }
                               }}
-                              className="group p-6 rounded-[28px] bg-light-bg border-2 border-transparent hover:border-brand-accent-500 hover:bg-white transition-all text-left disabled:opacity-50 shadow-sm"
+                              className={`
+                                group relative p-5 rounded-[24px] border transition-all duration-300 text-left disabled:opacity-50
+                                ${isAdmin 
+                                    ? 'col-span-2 bg-brand-accent-600 border-brand-accent-600 text-white hover:bg-brand-accent-700 hover:shadow-lg shadow-brand-accent-600/20' 
+                                    : 'bg-white border-light-border hover:border-brand-accent-300 hover:shadow-lg hover:-translate-y-1'
+                                }
+                              `}
                             >
-                              <div className="flex flex-col gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center shadow-lg transition-transform">
-                                  <Icon className="w-7 h-7 text-brand-accent-600" />
+                              <div className="flex items-center gap-4">
+                                <div className={`
+                                    w-12 h-12 rounded-xl flex items-center justify-center transition-colors
+                                    ${isAdmin 
+                                        ? 'bg-white/20 text-white' 
+                                        : 'bg-light-surface text-brand-accent-600 group-hover:bg-brand-accent-50'
+                                    }
+                                `}>
+                                  <Icon className="w-6 h-6" />
                                 </div>
-                                <div className="min-w-0">
-                                  <div className="font-black text-lg text-light-text">{role.name || role.id}</div>
-                                  <div className="text-xs text-light-text-secondary font-bold mt-1 uppercase tracking-wider">{role.id} Module</div>
+                                <div>
+                                  <div className={`font-black text-sm ${isAdmin ? 'text-white' : 'text-light-text'}`}>
+                                    {role.name}
+                                  </div>
+                                  <div className={`text-[10px] font-bold uppercase tracking-wider mt-0.5 ${isAdmin ? 'text-white/60' : 'text-light-text-secondary'}`}>
+                                    {isAdmin ? 'System Root' : 'Department'}
+                                  </div>
                                 </div>
+                                {isAdmin && <ChevronRight className="w-5 h-5 text-white/60 ml-auto" />}
                               </div>
                             </button>
                           );
                         })}
-                      </div>
-                      {roleLoginLoading && (
-                        <div className="flex items-center justify-center gap-2 text-sm font-bold text-brand-accent-600">
-                          Securing Session...
-                        </div>
-                      )}
                     </div>
                   )}
-                </div>
+
+                  {roleLoginLoading && !showAdminForm && !isAuthenticated && (
+                     <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 rounded-[40px]">
+                        <div className="w-10 h-10 border-4 border-brand-accent-100 border-t-brand-accent-600 rounded-full animate-spin mb-3" />
+                        <div className="text-sm font-bold text-brand-accent-600">Initializing Workspace...</div>
+                     </div>
+                  )}
               </div>
             </div>
           </div>
