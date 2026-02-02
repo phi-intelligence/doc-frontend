@@ -15,7 +15,7 @@ const UrlInputForm = ({ onSubmit, isLoading = false }) => {
     }
 
     // Basic URL validation
-    const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/i;
+    const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
     if (!urlPattern.test(value)) {
       return 'Please enter a valid website URL';
     }

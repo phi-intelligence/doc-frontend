@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Building2, Globe, Mail, Phone, MapPin, Plus, X, ArrowRight, 
-  ArrowLeft, Loader2, Link2, Upload, Image as ImageIcon 
+  ArrowLeft, Loader2, Link2, Upload, Image as ImageIcon, ChevronDown 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 

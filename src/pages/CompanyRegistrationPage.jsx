@@ -64,7 +64,7 @@ const ProgressStep = ({ item }) => {
  */
 const CompanyRegistrationPage = () => {
   const navigate = useNavigate();
-  const { login: authLogin } = useAuth();
+  const { login } = useAuth();
 
   // Phase state with history for back navigation
   // Phases: 'method' | 'url-input' | 'scraping' | 'manual' | 'preview' | 'modules'
